@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Propuesta de Proyecto - COVEICYDET</title>
+    <link rel="stylesheet" href="registro-proyecto.css">
+</head>
+<body>
+    <div class="container">
+        <form id="proyecto-form" class="form-body" (ngSubmit)="onSubmit()" novalidate>
+            <h3>Datos generales</h3>
+
+            <!-- 1. Institución proponente -->
+            <div class="field-group">
+                <label for="institucion" class="required">1. Institución proponente</label>
+                <input id="institucion" name="institucion" type="text" required [(ngModel)]="model.institucion" placeholder="Nombre de la institución" />
+                <span class="error-message"></span>
+            </div>
+
+            <!-- 2. Área de adscripción -->
+            <div class="field-group">
+                <label for="area-adscripcion" class="required">2. Área de adscripción</label>
+                <input id="area-adscripcion"
+                       name="area-adscripcion"
+                       type="text"
+                       required
+                       [(ngModel)]="model.areaAdscripcion"
+                       placeholder="Especifique el área de adscripción" />
+                <span class="error-message"></span>
+            </div>
+
+            <!-- 3. Responsables -->
+            <div class="field-group">
+                <label class="required">3. Responsables de la propuesta</label>
+
+                <table class="responsables-table" role="table" aria-label="Responsables de la propuesta">
+                    <thead>
+                        <tr>
+                            <th style="width: 160px;"></th>
+                            <th style="width: 240px;">Campo</th>
+                            <th>Información</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- LEGAL -->
+                        <tr>
+                            <th class="group" rowspan="3">Legal</th>
+                            <td class="field-label">Nombre</td>
+                            <td>
+                                <input type="text" name="resp-legal-nombre" [(ngModel)]="model.responsables.legal.nombre" required placeholder="Nombre completo" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="field-label">Correo electrónico</td>
+                            <td>
+                                <input type="email" name="resp-legal-correo" [(ngModel)]="model.responsables.legal.correo" placeholder="correo@dominio.com" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="field-label">Número telefónico</td>
+                            <td>
+                                <input type="tel" name="resp-legal-telefono" [(ngModel)]="model.responsables.legal.telefono" placeholder="+52 000 000 0000" />
+                            </td>
+                        </tr>
+
+                        <!-- TÉCNICO -->
+                        <tr>
+                            <th class="group" rowspan="3">Técnico</th>
+                            <td class="field-label">Nombre</td>
+                            <td>
+                                <input type="text" name="resp-tec-nombre" [(ngModel)]="model.responsables.tecnico.nombre" required placeholder="Nombre completo" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="field-label">Correo electrónico</td>
+                            <td>
+                                <input type="email" name="resp-tec-correo" [(ngModel)]="model.responsables.tecnico.correo" placeholder="correo@dominio.com" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="field-label">Número telefónico</td>
+                            <td>
+                                <input type="tel" name="resp-tec-telefono" [(ngModel)]="model.responsables.tecnico.telefono" placeholder="+52 000 000 0000" />
+                            </td>
+                        </tr>
+
+                        <!-- ADMINISTRATIVO -->
+                        <tr>
+                            <th class="group" rowspan="3">Administrativo</th>
+                            <td class="field-label">Nombre</td>
+                            <td>
+                                <input type="text" name="resp-adm-nombre" [(ngModel)]="model.responsables.administrativo.nombre" required placeholder="Nombre completo" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="field-label">Correo electrónico</td>
+                            <td>
+                                <input type="email" name="resp-adm-correo" [(ngModel)]="model.responsables.administrativo.correo" placeholder="correo@dominio.com" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="field-label">Número telefónico</td>
+                            <td>
+                                <input type="tel" name="resp-adm-telefono" [(ngModel)]="model.responsables.administrativo.telefono" placeholder="+52 000 000 0000" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <span class="error-message"></span>
+            </div>
+
+            <!-- 4. Convocatoria -->
+            <div class="field-group">
+                <label for="convocatoria" class="required">4. Convocatoria</label>
+                <select id="convocatoria" name="convocatoria" required [(ngModel)]="model.convocatoria">
+                    <option value="">Seleccione una convocatoria</option>
+                    <option *ngFor="let c of convocatorias" [value]="c">{{ c }}</option>
+                </select>
+                <span class="error-message"></span>
+            </div>
+
+            <!-- 5. Área de conocimiento -->
+            <div class="field-group">
+                <label for="area-conocimiento" class="required">5. Área de conocimiento</label>
+                <select id="area-conocimiento" name="area-conocimiento" required [(ngModel)]="model.areaConocimiento">
+                    <option value="">Seleccione un área</option>
+                    <option *ngFor="let a of areasConocimiento" [value]="a">{{ a }}</option>
+                </select>
+                <span class="error-message"></span>
+            </div>
+
+            <!-- 6. Sector de desarrollo -->
+            <div class="field-group">
+                <label for="sector-desarrollo" class="required">6. Sector de desarrollo</label>
+                <select id="sector-desarrollo" name="sector-desarrollo" required [(ngModel)]="model.sectorDesarrollo">
+                    <option value="">Seleccione un sector</option>
+                    <option *ngFor="let s of sectores" [value]="s">{{ s }}</option>
+                </select>
+                <span class="error-message"></span>
+            </div>
+
+            <!-- 7. Nivel de maduración -->
+            <div class="field-group">
+                <label class="required">VII) Nivel de maduración (tecnológico y/o social)</label>
+                <p class="help-text">
+                    Marcar con una “X” el nivel de maduración tecnológico y social en el que se encuentra su proyecto
+                    y adjuntar documento probatorio que lo acredite.
+                </p>
+
+                <div class="maduracion-grid">
+                    <!-- TRL -->
+                    <table class="maduracion-table" role="table" aria-label="Niveles de Maduración Tecnológica">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Niveles de Maduración Tecnológica</th>
+                                <th class="mark-col">Marcar con “X”</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let t of nivelTRL">
+                                <td class="code">{{ t.label }}</td>
+                                <td class="desc">{{ t.desc }}</td>
+                                <td class="mark">
+                                    <input type="radio" name="trl" [value]="t.value" [(ngModel)]="model.nivelMaduracion.trl" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- SRL -->
+                    <table class="maduracion-table" role="table" aria-label="Niveles de Maduración Social">
+                        <thead>
+                            <tr>
+                                <th colspan="2">SRL: Niveles de Maduración Social</th>
+                                <th class="mark-col">Marcar con “X”</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let s of nivelSRL">
+                                <td class="code">{{ s.label }}</td>
+                                <td class="desc">{{ s.desc }}</td>
+                                <td class="mark">
+                                    <input type="radio" name="srl" [value]="s.value" [(ngModel)]="model.nivelMaduracion.srl" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Adjunto probatorio -->
+                <div class="file-upload" style="margin-top:12px;">
+                    <input
+                      id="nivel-maduracion"
+                      name="nivel-maduracion"
+                      type="file"
+                      accept=".pdf"
+                      (change)="onFileChange($event)"
+                      #fileInput
+                      hidden
+                    />
+                    <button type="button" class="btn-secondary" (click)="fileInput.click()">
+                      Seleccionar PDF
+                    </button>
+                    <span class="file-selected" aria-live="polite">{{ maduracionFileName }}</span>
+                </div>
+                <span class="error-message"></span>
+            </div>
+
+            <!-- Acciones -->
+            <div class="navigation" style="justify-content:flex-end;">
+                <button type="button" class="btn-secondary" (click)="saveDraft()">Guardar borrador</button>
+                <button type="submit" class="btn-primary">Enviar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Eliminar este script externo (no se usa en Angular) -->
+    <!-- <script src="registro-proyecto.js"></script> -->
+</body>
+</html>

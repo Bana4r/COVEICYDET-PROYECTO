@@ -1,0 +1,516 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 30px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+/* Variables CSS */
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --error-color: #dc3545;
+    --info-color: #17a2b8;
+    --light-gray: #f8f9fa;
+    --border-color: #dee2e6;
+    --border-radius: 8px;
+    --transition: all 0.3s ease;
+}
+
+/* Mejoras en la barra de progreso */
+.progress-bar {
+    position: relative;
+    margin-bottom: 40px;
+}
+
+/* Línea de progreso de fondo */
+.progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 50px; /* Comienza después del primer círculo */
+    right: 50px; /* Termina antes del último círculo */
+    height: 2px;
+    background-color: #dee2e6;
+    z-index: 0;
+}
+
+/* Línea de progreso activa */
+.progress-line {
+    position: absolute;
+    top: 15px;
+    left: 50px; /* Comienza después del primer círculo */
+    height: 2px;
+    background-color: var(--primary-color);
+    transition: width 0.3s ease;
+    z-index: 0;
+    max-width: calc(100% - 100px); /* No excede los círculos */
+}
+
+.progress-bar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1; /* Asegurar que esté por encima de las líneas */
+}
+
+.progress-bar ul li {
+    width: 30px;
+    height: 30px;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #333;
+    background-color: #fff;
+    position: relative;
+    z-index: 2; /* Mayor z-index que las líneas */
+    font-weight: bold;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+/* Remover las líneas individuales de cada li */
+.progress-bar ul li::before {
+    content: none; /* Eliminar completamente las líneas individuales */
+}
+
+.progress-bar ul li:hover {
+    transform: scale(1.1);
+}
+
+/* CORRECCIÓN: Estilo para el círculo activo */
+.progress-bar ul li.active {
+    background-color: var(--primary-color) !important;
+    color: #fff !important;
+    border-color: var(--primary-color) !important;
+    z-index: 3; /* Asegurar que el activo esté por encima */
+}
+
+.progress-bar ul li.completed {
+    background-color: var(--success-color) !important;
+    color: #fff !important;
+    border-color: var(--success-color) !important;
+    z-index: 2;
+}
+
+/* Estilo por defecto para círculos no visitados */
+.progress-bar ul li:not(.active):not(.completed) {
+    background-color: #fff;
+    color: #999;
+    border-color: #dee2e6;
+}
+
+.step-label {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--secondary-color);
+    font-weight: normal;
+}
+
+/* Estilos de sección */
+.section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Grupos de campos */
+.field-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.field-group label.required::after {
+    content: " *";
+    color: var(--error-color);
+}
+
+/* Estilos de validación */
+.form-body input.error,
+.form-body select.error,
+.form-body textarea.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.error-message {
+    display: block;
+    color: var(--error-color);
+    font-size: 14px;
+    margin-top: 5px;
+    min-height: 20px;
+}
+
+/* Navegación */
+.navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 10px;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.btn-secondary {
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+.btn-primary:hover, .btn-secondary:hover {
+    opacity: 0.9;
+}
+
+.btn-outline {
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+}
+
+.btn-outline:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Upload de archivos: usar botón */
+.file-upload {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.file-upload input[type="file"][hidden] {
+    display: none;
+}
+
+.file-selected {
+    color: #2c3e50;
+    font-size: 14px;
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Notificaciones */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: var(--border-radius);
+    color: white;
+    font-weight: 500;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+}
+
+.notification-success { background-color: var(--success-color); }
+.notification-error { background-color: var(--error-color); }
+.notification-info  { background-color: var(--info-color); }
+
+/* Notificaciones mejoradas */
+.notification {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-left: 4px solid rgba(255,255,255,0.3);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mejora adicional para responsive */
+@media (max-width: 768px) {
+    .progress-bar::before {
+        display: none; /* Ocultar línea en móviles */
+    }
+    
+    .progress-line {
+        display: none; /* Ocultar línea de progreso en móviles */
+    }
+    
+    .progress-bar ul {
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+    }
+    
+    .progress-bar ul li {
+        margin: 5px;
+    }
+    
+    .step-label {
+        display: none; /* Ocultar etiquetas en móviles para ahorrar espacio */
+    }
+}
+
+/* Asegurar que los estilos se apliquen correctamente en Angular */
+[_ngcontent-ng-c3214436080] .progress-bar ul li.active {
+    background-color: #007bff !important;
+    color: white !important;
+    border-color: #007bff !important;
+}
+
+[_ngcontent-ng-c3214436080] .progress-bar ul li.completed {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
+
+/* Estilos adicionales para modo prototipo */
+
+/* Círculos visitados en modo prototipo */
+.progress-bar ul li.visited {
+    background-color: #e9ecef;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+.progress-bar ul li.visited:hover {
+    background-color: #f8f9fa;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Validación suave para prototipo */
+.form-body input.warning,
+.form-body select.warning,
+.form-body textarea.warning {
+    border-color: var(--warning-color);
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+/* Mejorar feedback visual de navegación */
+.progress-bar ul li {
+    transition: all 0.3s ease;
+}
+
+.progress-bar ul li:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Estilo para botón de envío en demo */
+.btn-success {
+    background-color: var(--success-color) !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+    background-color: #218838 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+/* Animación suave para cambio de secciones */
+.section {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.section:not(.active) {
+    opacity: 0;
+    transform: translateX(-20px);
+}
+
+.section.active {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Indicador visual de que es un prototipo */
+.container::before {
+    content: "🚀 MODO PROTOTIPO - Navegación Libre";
+    position: absolute;
+    top: -10px;
+    right: 20px;
+    background: linear-gradient(45deg, #007bff, #28a745);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 0 0 8px 8px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1000;
+}
+
+/* Tabla de responsables */
+.responsables-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-top: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.responsables-table th,
+.responsables-table td {
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  vertical-align: middle;
+  background: #fff;
+}
+
+.responsables-table thead th {
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+}
+
+.responsables-table th.group {
+  background: #2b5db0; /* azul más oscuro para el grupo */
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
+}
+
+.responsables-table td.field-label {
+  background: #eef3ff; /* azul claro similar a la referencia */
+  color: #2c3e50;
+  font-weight: 600;
+  width: 240px;
+}
+
+.responsables-table input[type="text"],
+.responsables-table input[type="email"],
+.responsables-table input[type="tel"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+}
+
+.responsables-table input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
+}
+
+/* Responsive: colapsar encabezado y mantener legible */
+@media (max-width: 768px) {
+  .responsables-table thead { display: none; }
+  .responsables-table, .responsables-table tbody, .responsables-table tr, .responsables-table td, .responsables-table th {
+    display: block;
+    width: 100%;
+  }
+  .responsables-table tr { margin-bottom: 10px; }
+  .responsables-table th.group { border-bottom: none; border-right: none; }
+  .responsables-table td.field-label { border-top: none; }
+}
+
+/* Paso VII: tablas de maduración */
+.help-text {
+  margin: 6px 0 10px;
+  color: #5f6b7a;
+  font-size: 14px;
+}
+
+.maduracion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.maduracion-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color);
+  table-layout: fixed;
+  background: #fff;
+}
+
+.maduracion-table th,
+.maduracion-table td {
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  vertical-align: top;
+}
+
+.maduracion-table thead th {
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+}
+
+.maduracion-table td.code {
+  width: 90px;
+  font-weight: 700;
+  color: #2b5db0;
+}
+
+.maduracion-table td.desc {
+  color: #2c3e50;
+}
+
+.maduracion-table .mark-col {
+  width: 130px;
+  text-align: center;
+}
+
+.maduracion-table td.mark {
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .maduracion-grid {
+    grid-template-columns: 1fr;
+  }
+}
