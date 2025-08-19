@@ -1,11 +1,12 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-registro-proyecto',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './registro-proyecto.html',
   styleUrl: './registro-proyecto.css'
 })
@@ -84,6 +85,7 @@ export class RegistroProyecto {
     this.maduracionFile = input.files?.[0] ?? null;
     this.maduracionFileName = this.maduracionFile ? this.maduracionFile.name : 'Seleccionar archivo PDF';
   }
+
 
   saveDraft() { /* demo */ }
   onSubmit() { /* demo */ }

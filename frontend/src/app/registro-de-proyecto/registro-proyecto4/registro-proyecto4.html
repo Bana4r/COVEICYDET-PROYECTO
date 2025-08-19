@@ -1,0 +1,157 @@
+<!-- se usa Tailwind CSS para el diseño y estilo de la interfaz -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Entregables y presupuesto</title>
+</head>
+<body>
+  <body class="bg-slate-100 min-h-screen antialiased font-sans">
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        <form class="space-y-8 bg-white p-8 rounded-xl shadow-sm border border-slate-200" action="#" method="post">
+            <h1 class="text-2xl font-semibold text-slate-800">Entregable y presupuesto</h1>
+
+            <!-- productos entregables comprometidos -->
+            <!-- productos academicos, checklist de libros derivados de la propuesta, propiedad intelectua e industrial, informes tecnicos, desarrollo tecnologico -->
+            <div class="space-y-4">
+                <label class="block text-sm font-medium text-slate-700">Productos Entregables Comprometidos</label>
+                
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-slate-700">Productos Académicos</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="libros" name="productos-entregables[]" value="libros" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="libros" class="ml-2 text-sm text-slate-700">Libros derivados de la propuesta</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="propiedad-intelectual" name="productos-entregables[]" value="propiedad-intelectual" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="propiedad-intelectual" class="ml-2 text-sm text-slate-700">Propiedad intelectual e industrial</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="Folletos" name="productos-entregables[]" value="Folletos" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="Folletos" class="ml-2 text-sm text-slate-700">Informes técnicos</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="Libros-de-divulgacion" name="productos-entregables[]" value="Libros-de-divulgacion" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="Libros-de-divulgacion" class="ml-2 text-sm text-slate-700">Desarrollo tecnológico</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-slate-700">Productos de acceso universal del conocimiento</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="tesis" name="productos-entregables[]" value="tesis" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="tesis" class="ml-2 text-sm text-slate-700">Desarrollo de actividades de difusión y divulgación de los resultados</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="infografias" name="productos-entregables[]" value="infografias" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="infografias" class="ml-2 text-sm text-slate-700">Infografías</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="Folletos" name="productos-entregables[]" value="Folletos" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="Folletos" class="ml-2 text-sm text-slate-700">Folletos</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="Libros-de-divulgacion" name="productos-entregables[]" value="Libros-de-divulgacion" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="Libros-de-divulgacion" class="ml-2 text-sm text-slate-700">Libros de divulgación</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="material-audiovisual" name="productos-entregables[]" value="material-audiovisual" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="material-audiovisual" class="ml-2 text-sm text-slate-700">Material audiovisual</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="podcast" name="productos-entregables[]" value="podcast" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="podcast" class="ml-2 text-sm text-slate-700">Podcast</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="entre-otros" name="productos-entregables[]" value="entre-otros"
+                                         class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="entre-otros" class="ml-2 text-sm text-slate-700">Entre otros</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-slate-700">Formacion de capacidades en HCTI y vocaciones cientificas</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                                <input type="checkbox" id="tesis" name="productos-entregables[]" value="tesis" 
+                                       class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                                <label for="tesis" class="ml-2 text-sm text-slate-700">Tesis</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="tesina" name="productos-entregables[]" value="tesina" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="tesina" class="ml-2 text-sm text-slate-700">Tesina</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="memoria-residencias" name="productos-entregables[]" value="memoria-residencias" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="memoria-residencias" class="ml-2 text-sm text-slate-700">Memoria de residencias profesionales</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-slate-700">Insumos para la implementaciond de politicas publicas</h3>
+                    <div class="space-y-3">
+
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-slate-700">Fortalecimiento de infraestructura</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="Equipamiento-de-maquinaria" name="productos-entregables[]" value="Equipamiento-de-maquinaria" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="Equipamiento-de-maquinaria" class="ml-2 text-sm text-slate-700">Equipamiento de maquinaria</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" id="equipo-de-laboratorio" name="productos-entregables[]" value="equipo-de-laboratorio" 
+                                   class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                            <label for="equipo-de-laboratorio" class="ml-2 text-sm text-slate-700">Equipo de laboratorio</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- botones -->
+            <div class="flex justify-end space-x-2">
+                <button type="button" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2" routerLink="/registro-proyecto/paso3">
+                    Anterior
+                </button>
+                <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Guardar borrador
+                </button>
+                <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                    Enviar
+                </button>
+            </div>
+        </form>
+    </div>
+  </body>

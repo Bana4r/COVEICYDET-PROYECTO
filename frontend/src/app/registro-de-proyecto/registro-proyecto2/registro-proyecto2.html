@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Justificación y objetivos</title>
+</head>
+<body class="bg-slate-100 min-h-screen antialiased font-sans">
+  <div class="max-w-5xl mx-auto px-4 py-10">
+    <form class="bg-white border border-slate-200 rounded-xl shadow-sm px-8 py-10 space-y-10">
+      <header class="space-y-2">
+        <h3 class="text-2xl font-semibold text-slate-800 tracking-tight">Justificación y objetivos</h3>
+        <p class="text-sm text-slate-500">Complete cada sección (todos los campos son obligatorios).</p>
+      </header>
+
+      <!-- Grupo 1 -->
+      <section class="space-y-6">
+        <h4 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Descripción General</h4>
+
+        <div class="space-y-2">
+          <label for="resumen-ejecutivo" class="text-sm font-medium text-slate-700">Resumen Ejecutivo <span class="text-rose-600">*</span></label>
+          <textarea id="resumen-ejecutivo" name="resumen-ejecutivo" rows="5" required
+            placeholder="Describa brevemente el proyecto, alcance, impacto y resultados esperados."
+            class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40 resize-y"></textarea>
+          <small class="text-[11px] font-semibold tracking-wide text-slate-400">Máx. 1000 caracteres</small>
+        </div>
+
+        <div class="space-y-2">
+          <label for="antecedentes" class="text-sm font-medium text-slate-700">Antecedentes <span class="text-rose-600">*</span></label>
+          <textarea id="antecedentes" name="antecedentes" rows="5" required
+            placeholder="Contexto previo, estudios, situación actual."
+            class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+        </div>
+
+        <div class="space-y-2">
+          <label for="pertinencia" class="text-sm font-medium text-slate-700">Pertinencia <span class="text-rose-600">*</span></label>
+          <textarea id="pertinencia" name="pertinencia" rows="4" required
+            placeholder="Justifique la relevancia y necesidad del proyecto."
+            class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+        </div>
+      </section>
+
+      <!-- Grupo 2 -->
+      <section class="space-y-6">
+        <h4 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Fundamentación</h4>
+
+        <div class="space-y-2">
+          <label for="preguntas-investigacion" class="text-sm font-medium text-slate-700">Preguntas de Investigación <span class="text-rose-600">*</span></label>
+          <textarea id="preguntas-investigacion" name="preguntas-investigacion" rows="4" required
+            placeholder="Enumere preguntas clave (una por línea)."
+            class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+        </div>
+
+        <div class="grid gap-6 md:grid-cols-2">
+          <div class="space-y-2">
+            <label for="objetivo-general" class="text-sm font-medium text-slate-700">Objetivo General <span class="text-rose-600">*</span></label>
+            <textarea id="objetivo-general" name="objetivo-general" rows="4" required
+              placeholder="Redacte el objetivo general del proyecto."
+              class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+          </div>
+          <div class="space-y-2">
+            <label for="objetivos-especificos" class="text-sm font-medium text-slate-700">Objetivos Específicos <span class="text-rose-600">*</span></label>
+            <textarea id="objetivos-especificos" name="objetivos-especificos" rows="4" required
+              placeholder="Enumere objetivos específicos (uno por línea)."
+              class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Navegación -->
+      <div class="flex flex-col-reverse gap-3 pt-6 border-t border-slate-200 sm:flex-row sm:justify-end">
+        <button type="button"
+                class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+          Guardar borrador
+        </button>
+        <div class="flex gap-3 sm:ml-4">
+          <button type="button"
+                  class="inline-flex items-center justify-center rounded-md bg-slate-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500/50" routerLink="/registro-proyect/paso1">
+            Anterior
+          </button>
+          <button type="button"
+                  class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/60" routerLink="/registro-proyecto/paso3">
+            Siguiente
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

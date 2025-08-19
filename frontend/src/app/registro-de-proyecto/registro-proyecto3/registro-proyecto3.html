@@ -1,0 +1,94 @@
+<!-- se usa Tailwind CSS para el diseño y estilo de la interfaz -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Planeacion y evaluacion</title>
+</head>
+<body class="bg-slate-100 min-h-screen antialiased font-sans">
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        <form class="space-y-8 bg-white p-8 rounded-xl shadow-sm border border-slate-200" action="#" method="post">
+            <h1 class="text-2xl font-semibold text-slate-800">Planeacion y evaluacion</h1>
+
+            <!-- cronograma de actividades, sera un lugar donde se podra subir un archivo -->
+            <div class="space-y-1">
+                <label for="cronograma" class="block text-sm font-medium text-slate-700">Cronograma de Actividades</label>
+                <div class="flex items-center space-x-4">
+                    <label for="cronograma" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer">
+                        Subir cronograma
+                    </label>
+                    <span id="cronograma-nombre" class="text-sm text-slate-500">PDF, máximo 10MB</span>
+                </div>
+                <input id="cronograma" name="cronograma" type="file" accept="application/pdf" required class="hidden"
+                             onchange="document.getElementById('cronograma-nombre').textContent = this.files.length ? this.files[0].name : 'PDF, máximo 10MB'">
+                <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-gray-300 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Eliminar
+                </button>
+            </div>
+
+            <!-- Factores de riesgo y mitigacion -->
+            <div class="space-y-1">
+                <label for="factores-riesgo" class="block text-sm font-medium text-slate-700">Factores de Riesgo y Mitigación</label>
+                <textarea id="factores-riesgo" name="factores-riesgo" rows="4" required
+                          placeholder="Describa los principales factores de riesgo y sus estrategias de mitigación."
+                          class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+
+            </div>
+
+            <!-- Referencias bibliograficas -->
+            <div class="space-y-1">
+                <label for="referencias" class="block text-sm font-medium text-slate-700">Referencias Bibliográficas</label>
+                <textarea id="referencias" name="referencias" rows="4" required
+                          placeholder="Incluya las referencias bibliográficas utilizadas."
+                          class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+
+            </div>
+
+            <!-- vinculacion institucional -->
+            <div class="space-y-1">
+                <label for="vinculacion-institucional" class="block text-sm font-medium text-slate-700">Vinculación Institucional</label>
+                <textarea id="vinculacion-institucional" name="vinculacion-institucional" rows="4" required
+                          placeholder="Describa la vinculación institucional del proyecto."
+                          class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+
+            </div>
+
+            <!-- Resultados esperados -->
+            <div class="space-y-1">
+                <label for="resultados" class="block text-sm font-medium text-slate-700">Resultados Esperados</label>
+                <textarea id="resultados" name="resultados" rows="4" required
+                          placeholder="Describa los resultados esperados del proyecto."
+                          class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+
+            </div>
+
+            <!-- Areas de impacto -->
+            <div class="space-y-1">
+                <label for="areas-impacto" class="block text-sm font-medium text-slate-700">Áreas de Impacto</label>
+                <textarea id="areas-impacto" name="areas-impacto" rows="4" required
+                          placeholder="Describa las áreas de impacto del proyecto."
+                          class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"></textarea>
+
+            </div>
+
+            <!-- botones de guardar borrador y siguiente-->
+            <div class="flex justify-between mt-4">
+                <div class="coveic-hide-original flex ml-auto space-x-3">
+                    <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-gray-300 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Guardar Borrador
+                    </button>
+                    <button type="button"
+                    class="inline-flex items-center justify-center rounded-md bg-slate-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500/50" routerLink="/registro-proyecto/paso2">
+                        Anterior
+                    </button>
+                    <button type="button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" routerLink="/registro-proyecto/paso4">
+                        Siguiente
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</body>
+</html>

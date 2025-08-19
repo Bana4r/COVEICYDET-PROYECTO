@@ -1,0 +1,185 @@
+body {
+  font-family: Arial, sans-serif;
+  background:#f0f0f0;
+  margin:0;
+  padding:20px;
+}
+
+.container {
+  max-width:900px;
+  margin:0 auto;
+  background:#fff;
+  padding:30px;
+  border:1px solid #d9d9d9; /* contorno gris */
+  border-radius:8px;
+}
+
+:root {
+  --primary-color:#007bff;
+  --border-color:#dee2e6;
+}
+
+/* Grupos de campos */
+.field-group { margin-bottom:24px; }
+.field-group label.required::after { content:" *"; color:#d9534f; }
+
+/* Navegación */
+.navigation {
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  margin-top:32px;
+  padding-top:20px;
+  border-top:1px solid var(--border-color);
+}
+
+/* Botón base (opcional para unificar) */
+.btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font:inherit;
+  line-height:1.2;
+  border:1px solid transparent;
+  cursor:pointer;
+  text-decoration:none;
+  appearance:none;
+}
+
+/* Reutiliza las reglas existentes sin romper nada */
+.btn-primary,
+.btn-secondary {
+  padding:10px 20px;
+  font-size:15px;
+  border-radius:5px;
+  cursor:pointer;
+  transition:opacity .2s;
+  border:1px solid transparent;
+}
+
+/* Asegurar que el primario siempre tenga color (con fallback) */
+.btn-primary {
+  background:var(--primary-color, #007bff);
+  color:#fff;
+  border-color:var(--primary-color, #007bff);
+  display:inline-flex;
+}
+
+/* Secundario visible */
+.btn-secondary {
+  background:#f8f9fa;
+  color:#333;
+  border-color:#ccc;
+  display:inline-flex;
+}
+
+/* Tabla de responsables */
+.responsables-table,
+.maduracion-table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:8px;
+  background:#fff;
+  border:1px solid var(--border-color);
+  table-layout:fixed;
+}
+
+.responsables-table th,
+.responsables-table td,
+.maduracion-table th,
+.maduracion-table td {
+  border:1px solid var(--border-color);
+  padding:10px;
+  vertical-align:middle;
+  background:#fff;
+  font-size:14px;
+}
+
+.responsables-table thead th,
+.maduracion-table thead th {
+  background:var(--primary-color);
+  color:#fff;
+  font-weight:600;
+  text-align:left;
+}
+
+.responsables-table th.group { background:#2b5db0; color:#fff; font-weight:700; width:160px; }
+
+.responsables-table td.field-label {
+  background:#eef3ff;
+  font-weight:600;
+  width:240px;
+  color:#2c3e50;
+}
+
+.maduracion-table td.code {
+  width:90px;
+  font-weight:700;
+  color:#2b5db0;
+}
+
+.maduracion-table td.mark,
+.maduracion-table .mark-col { text-align:center; }
+
+.help-text {
+  margin:6px 0 10px;
+  color:#5f6b7a;
+  font-size:14px;
+}
+
+/* Grid de maduración */
+.maduracion-grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:16px;
+}
+
+/* Inputs dentro de tablas */
+.responsables-table input[type="text"],
+.responsables-table input[type="email"],
+.responsables-table input[type="tel"] {
+  width:100%;
+  padding:8px 10px;
+  border:1px solid var(--border-color);
+  border-radius:6px;
+  font-size:14px;
+  outline:none;
+}
+
+.responsables-table input:focus {
+  border-color:var(--primary-color);
+  box-shadow:0 0 0 0.15rem rgba(0,123,255,.25);
+}
+
+/* Upload */
+.file-upload {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  margin-top:12px;
+}
+
+.file-upload input[type="file"][hidden] { display:none; }
+.file-selected {
+  font-size:14px;
+  color:#2c3e50;
+  max-width:60%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* Responsive tablas grandes */
+@media (max-width:768px) {
+  .maduracion-grid { grid-template-columns:1fr; }
+  .responsables-table thead { display:none; }
+  .responsables-table, .responsables-table tbody, .responsables-table tr,
+  .responsables-table td, .responsables-table th {
+    display:block;
+    width:100%;
+  }
+  .responsables-table tr { margin-bottom:10px; }
+  .responsables-table th.group { border-bottom:none; }
+  .responsables-table td.field-label { border-top:none; }
+}
