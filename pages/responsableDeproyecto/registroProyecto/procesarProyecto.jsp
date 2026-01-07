@@ -16,80 +16,140 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
     private static final String DB_USER = "dbusr25";
     private static final String DB_PASSWORD = "mxToro24000Chocolate";
     
-    // Función para extraer valor de JSON usando regex (sin librerías externas)
-    public String extraerValor(String json, String clave) {
-        if (json == null || clave == null) return "";
-        
-        String patron = "\"" + clave + "\"\\s*:\\s*\"([^\"]*)\"|\"" + clave + "\"\\s*:\\s*([^,}\\]]+)";
-        Pattern pattern = Pattern.compile(patron);
-        Matcher matcher = pattern.matcher(json);
-        
-        if (matcher.find()) {
-            String valor = matcher.group(1);
-            if (valor == null) valor = matcher.group(2);
-            if (valor != null) {
-                valor = valor.trim();
-                if (valor.equals("null") || valor.equals("undefined") || valor.equals("NaN")) return "";
-                return valor;
-            }
-        }
-        return "";
-    }
-    
-    // Función para encontrar cierre balanceado de llaves/corchetes
-    private int encontrarCierreBalanceado(String s, int inicio, char abre, char cierra) {
-        int profundidad = 0;
-        boolean enString = false;
-        boolean escape = false;
-        for (int i = inicio; i < s.length(); i++) {
-            char ch = s.charAt(i);
-            if (enString) {
-                if (escape) {
-                    escape = false;
-                } else if (ch == '\\') {
-                    escape = true;
-                } else if (ch == '"') {
-                    enString = false;
-                }
-                continue;
-            }
-            if (ch == '"') {
-                enString = true;
-                continue;
-            }
-            if (ch == abre) profundidad++;
-            else if (ch == cierra) {
-                profundidad--;
-                if (profundidad == 0) return i;
-            }
-        }
-        return -1;
-    }
+    // ==========================================
+    // CLASE ROBUSTA PARA PARSEO DE JSON (SIN LIBRERÍAS EXTERNAS)
+    // ==========================================
+    public static class RobustJsonParser {
+        private String json;
+        private int pos;
 
-    // Extraer objeto JSON por clave
-    private String extraerObjetoPorClave(String json, String clave) {
-        if (json == null) return "{}";
-        String buscado = "\"" + clave + "\"";
-        int idx = json.indexOf(buscado);
-        if (idx < 0) return "{}";
-        int ll = json.indexOf('{', idx);
-        if (ll < 0) return "{}";
-        int rr = encontrarCierreBalanceado(json, ll, '{', '}');
-        if (rr < 0) return "{}";
-        return json.substring(ll, rr + 1);
+        public Object parse(String input) throws Exception {
+            if (input == null || input.trim().isEmpty()) return new HashMap<String, Object>();
+            this.json = input;
+            this.pos = 0;
+            skipSpace();
+            return parseVal();
+        }
+
+        private Object parseVal() throws Exception {
+            if (pos >= json.length()) return null;
+            char c = peek();
+            if (c == '{') return parseObj();
+            if (c == '[') return parseArr();
+            if (c == '"') return parseStr();
+            if (c == 't') { match("true"); return true; }
+            if (c == 'f') { match("false"); return false; }
+            if (c == 'n') { match("null"); return null; }
+            if (Character.isDigit(c) || c == '-') return parseNum();
+            throw new Exception("Carácter inesperado en posición " + pos + ": " + c);
+        }
+
+        private Map<String, Object> parseObj() throws Exception {
+            Map<String, Object> map = new HashMap<String, Object>();
+            consume('{');
+            skipSpace();
+            if (peek() == '}') { consume('}'); return map; }
+            while (true) {
+                String key = parseStr();
+                skipSpace();
+                consume(':');
+                skipSpace();
+                map.put(key, parseVal());
+                skipSpace();
+                if (peek() == '}') { consume('}'); break; }
+                consume(',');
+                skipSpace();
+            }
+            return map;
+        }
+
+        private List<Object> parseArr() throws Exception {
+            List<Object> list = new ArrayList<Object>();
+            consume('[');
+            skipSpace();
+            if (peek() == ']') { consume(']'); return list; }
+            while (true) {
+                list.add(parseVal());
+                skipSpace();
+                if (peek() == ']') { consume(']'); break; }
+                consume(',');
+                skipSpace();
+            }
+            return list;
+        }
+
+        private String parseStr() throws Exception {
+            consume('"');
+            StringBuilder sb = new StringBuilder();
+            while (pos < json.length()) {
+                char c = json.charAt(pos++);
+                if (c == '"') return sb.toString();
+                if (c == '\\') {
+                    if (pos >= json.length()) break;
+                    char esc = json.charAt(pos++);
+                    if (esc == 'n') sb.append('\n');
+                    else if (esc == 'r') sb.append('\r');
+                    else if (esc == 't') sb.append('\t');
+                    else if (esc == 'b') sb.append('\b');
+                    else if (esc == 'f') sb.append('\f');
+                    else if (esc == '"') sb.append('\"');
+                    else if (esc == '\\') sb.append('\\');
+                    else if (esc == '/') sb.append('/');
+                    else if (esc == 'u') {
+                        if (pos + 4 <= json.length()) {
+                            try {
+                                sb.append((char) Integer.parseInt(json.substring(pos, pos + 4), 16));
+                                pos += 4;
+                            } catch (NumberFormatException e) { sb.append("\\u"); }
+                        } else { sb.append("\\u"); }
+                    } else sb.append(esc);
+                } else {
+                    sb.append(c);
+                }
+            }
+            return sb.toString();
+        }
+
+        private Number parseNum() throws Exception {
+            int start = pos;
+            if (pos < json.length() && json.charAt(pos) == '-') pos++;
+            while (pos < json.length() && Character.isDigit(json.charAt(pos))) pos++;
+            if (pos < json.length() && json.charAt(pos) == '.') {
+                pos++;
+                while (pos < json.length() && Character.isDigit(json.charAt(pos))) pos++;
+            }
+            String s = json.substring(start, pos);
+            if (s.contains(".")) return Double.parseDouble(s);
+            try { return Long.parseLong(s); } catch (NumberFormatException e) { return 0; }
+        }
+
+        private void skipSpace() {
+            while (pos < json.length() && Character.isWhitespace(json.charAt(pos))) pos++;
+        }
+        private char peek() { return pos < json.length() ? json.charAt(pos) : 0; }
+        private void consume(char c) throws Exception { if (peek() != c) throw new Exception("Esperaba " + c); pos++; }
+        private void match(String s) throws Exception { for (char c : s.toCharArray()) consume(c); }
     }
     
-    // Extraer array JSON por clave
-    private String extraerArrayPorClave(String json, String clave) {
-        if (json == null) return "[]";
-        String buscado = "\"" + clave + "\"";
-        int idx = json.indexOf(buscado);
-        if (idx < 0) return "[]";
-        int lb = json.indexOf('[', idx);
-        if (lb < 0) return "[]";
-        int rb = encontrarCierreBalanceado(json, lb, '[', ']');
-        if (rb < 0) return "[]";
-        return json.substring(lb, rb + 1);
+    // Helpers seguros para extraer datos del mapa
+    private String getStr(Map<String, Object> map, String key) {
+        if (map == null || !map.containsKey(key)) return "";
+        Object val = map.get(key);
+        return val == null ? "" : String.valueOf(val).trim();
+    }
+    
+    private Map<String, Object> getMap(Map<String, Object> parent, String key) {
+        if (parent == null || !parent.containsKey(key)) return new HashMap<>();
+        Object val = parent.get(key);
+        if (val instanceof Map) return (Map<String, Object>) val;
+        return new HashMap<>();
+    }
+    
+    private List<Object> getList(Map<String, Object> parent, String key) {
+        if (parent == null || !parent.containsKey(key)) return new ArrayList<>();
+        Object val = parent.get(key);
+        if (val instanceof List) return (List<Object>) val;
+        return new ArrayList<>();
     }
 %>
 
@@ -117,7 +177,6 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
     int proyectoId = 0;
     
     try {
-
         request.setCharacterEncoding("UTF-8");
 
         // Validar sesión
@@ -125,41 +184,44 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
             throw new Exception("Sesión inválida. Por favor, inicie sesión nuevamente.");
         }
         
-        // Obtener JSON consolidado de todas las páginas
-        String datosCompletos = request.getParameter("datosProyecto");
+        // Obtener JSON consolidado
+        String datosCompletosStr = request.getParameter("datosProyecto");
         
-        if (datosCompletos == null || datosCompletos.trim().isEmpty()) {
+        if (datosCompletosStr == null || datosCompletosStr.trim().isEmpty()) {
             throw new Exception("No se recibieron datos del proyecto");
         }
         
-        // Extraer cada página del JSON
-        String pagina1Json = extraerObjetoPorClave(datosCompletos, "pagina1");
-        String pagina2Json = extraerObjetoPorClave(datosCompletos, "pagina2");
-        String pagina3Json = extraerObjetoPorClave(datosCompletos, "pagina3");
-        String pagina4Json = extraerObjetoPorClave(datosCompletos, "pagina4");
-        String pagina5Json = extraerObjetoPorClave(datosCompletos, "pagina5");
-        String pagina6Json = extraerObjetoPorClave(datosCompletos, "pagina6");
-        String pagina7Json = extraerObjetoPorClave(datosCompletos, "pagina7");
-        String pagina8Json = extraerObjetoPorClave(datosCompletos, "pagina8");
-        String pagina9Json = extraerObjetoPorClave(datosCompletos, "pagina9");
+        // ============================================================
+        // PARSEO ROBUSTO DEL JSON COMPLETO
+        // ============================================================
+        RobustJsonParser parser = new RobustJsonParser();
+        Map<String, Object> root = (Map<String, Object>) parser.parse(datosCompletosStr);
         
-        // Página 1 tiene estructura especial: {proyecto: {...}, responsables: [...]}
-        String proyectoJson = extraerObjetoPorClave(pagina1Json, "proyecto");
-        String responsablesArray = extraerArrayPorClave(pagina1Json, "responsables");
+        // Extraer secciones principales como Mapas
+        Map<String, Object> pagina1 = getMap(root, "pagina1");
+        Map<String, Object> pagina2 = getMap(root, "pagina2");
+        Map<String, Object> pagina3 = getMap(root, "pagina3");
+        Map<String, Object> pagina4 = getMap(root, "pagina4");
+        Map<String, Object> pagina5 = getMap(root, "pagina5");
+        Map<String, Object> pagina6 = getMap(root, "pagina6");
+        Map<String, Object> pagina7 = getMap(root, "pagina7");
+        Map<String, Object> pagina8 = getMap(root, "pagina8");
+        Map<String, Object> pagina9 = getMap(root, "pagina9");
+        Map<String, Object> pagina10 = getMap(root, "pagina10");
+
+        // Sub-estructuras específicas
+        Map<String, Object> proyectoData = getMap(pagina1, "proyecto");
+        List<Object> responsablesList = getList(pagina1, "responsables");
         
-        // Extraer objetos - páginas 2 y 3 usan 'proyecto' porque van a la misma tabla
-        String pagina2Data = extraerObjetoPorClave(pagina2Json, "proyecto");
-        String pagina3Data = extraerObjetoPorClave(pagina3Json, "proyecto");
-        String pagina4Data = extraerObjetoPorClave(pagina4Json, "participante");
-        String pagina5Data = extraerObjetoPorClave(pagina5Json, "organizacion_social");
-        String pagina6Data = extraerObjetoPorClave(pagina6Json, "estudiantes");
-        String pagina7Data = extraerObjetoPorClave(pagina7Json, "cronograma");
-
-        // pagina 8 tiene estructura especial
-        String pagina8Data = extraerObjetoPorClave(pagina8Json, "partida");
-        String pagina8Array = extraerArrayPorClave(pagina8Data, "partidas");
-
-        String pagina9Data = extraerObjetoPorClave(pagina9Json, "pagina9");
+        Map<String, Object> p2Proyecto = getMap(pagina2, "proyecto");
+        Map<String, Object> p3Proyecto = getMap(pagina3, "proyecto");
+        Map<String, Object> p4Participantes = getMap(pagina4, "participante");
+        Map<String, Object> p5Organizaciones = getMap(pagina5, "organizacion_social");
+        Map<String, Object> p6Estudiantes = getMap(pagina6, "estudiantes");
+        
+        // En pagina 8, "partida" contiene un array "partidas"
+        Map<String, Object> p8PartidaObj = getMap(pagina8, "partida");
+        List<Object> p8PartidasList = getList(p8PartidaObj, "partidas");
         
         // Conectar a la base de datos
         Class.forName("org.postgresql.Driver");
@@ -169,7 +231,7 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
             
             try {
                 // ============================================================
-                // 1. INSERTAR PROYECTO PRINCIPAL (Páginas 1, 2, 3, 9)
+                // 1. INSERTAR PROYECTO PRINCIPAL (Páginas 1, 2, 3, 9, 10)
                 // ============================================================
                 String sqlProyecto = "INSERT INTO proyectos (" +
                     "titulo, institucion_proponente, area_adscripcion, municipio, convocatoria_id, " +
@@ -183,45 +245,43 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
                     "RETURNING id_proyecto";
                 
                 try (PreparedStatement stmt = conn.prepareStatement(sqlProyecto)) {
-                    // Página 1 - Datos generales (del objeto "proyecto")
-                    stmt.setString(1, extraerValor(proyectoJson, "titulo"));
-                    stmt.setString(2, extraerValor(proyectoJson, "institucion_proponente"));
-                    stmt.setString(3, extraerValor(proyectoJson, "area_adscripcion"));
-                    stmt.setString(4, extraerValor(proyectoJson, "municipio"));
+                    // Página 1
+                    stmt.setString(1, getStr(proyectoData, "titulo"));
+                    stmt.setString(2, getStr(proyectoData, "institucion_proponente"));
+                    stmt.setString(3, getStr(proyectoData, "area_adscripcion"));
+                    stmt.setString(4, getStr(proyectoData, "municipio"));
                     
-                    // Convocatoria ID
-                    String convocatoriaIdStr = extraerValor(proyectoJson, "convocatoria_id");
-                    if (convocatoriaIdStr != null && !convocatoriaIdStr.isEmpty()) {
-                        stmt.setInt(5, Integer.parseInt(convocatoriaIdStr));
-                    } else {
-                        stmt.setNull(5, java.sql.Types.INTEGER);
-                    }
+                    String convId = getStr(proyectoData, "convocatoria_id");
+                    if (!convId.isEmpty() && !convId.equals("null")) stmt.setInt(5, Integer.parseInt(convId));
+                    else stmt.setNull(5, java.sql.Types.INTEGER);
                     
-                    stmt.setString(6, extraerValor(proyectoJson, "sector_impacto_proyecto"));
-                    stmt.setString(7, extraerValor(proyectoJson, "nivel_slr"));
-                    stmt.setString(8, extraerValor(proyectoJson, "nivel_tlr"));
-                    stmt.setString(9, extraerValor(proyectoJson, "doc_probatorio"));
-                    stmt.setString(10, extraerValor(proyectoJson, "area_conocimiento"));
+                    stmt.setString(6, getStr(proyectoData, "sector_impacto_proyecto"));
+                    stmt.setString(7, getStr(proyectoData, "nivel_slr"));
+                    stmt.setString(8, getStr(proyectoData, "nivel_tlr"));
+                    stmt.setString(9, getStr(proyectoData, "doc_probatorio"));
+                    stmt.setString(10, getStr(proyectoData, "area_conocimiento"));
                     
-                    // Página 2 - Justificación y objetivos
-                    stmt.setString(11, extraerValor(pagina2Data, "resumen_ejecutivo"));
-                    stmt.setString(12, extraerValor(pagina2Data, "antecedentes"));
-                    stmt.setString(13, extraerValor(pagina2Data, "pertinencia"));
-                    stmt.setString(14, extraerValor(pagina2Data, "preguntas_investigacion"));
-                    stmt.setString(15, extraerValor(pagina2Data, "objetivos_general"));
-                    stmt.setString(16, extraerValor(pagina2Data, "objetivos_especificos"));
+                    // Página 2
+                    stmt.setString(11, getStr(p2Proyecto, "resumen_ejecutivo"));
+                    stmt.setString(12, getStr(p2Proyecto, "antecedentes"));
+                    stmt.setString(13, getStr(p2Proyecto, "pertinencia"));
+                    stmt.setString(14, getStr(p2Proyecto, "preguntas_investigacion"));
+                    stmt.setString(15, getStr(p2Proyecto, "objetivos_general"));
+                    stmt.setString(16, getStr(p2Proyecto, "objetivos_especificos"));
                     
-                    // Página 3 - Planeación y evaluación
-                    stmt.setString(17, extraerValor(pagina3Data, "factores_riesgo_mitigacion"));
-                    stmt.setString(18, extraerValor(pagina3Data, "resumen_metodologia"));
-                    stmt.setString(19, extraerValor(pagina3Data, "resultados_esperados"));
-                    stmt.setString(20, extraerValor(pagina3Data, "impacto_social"));
-                    stmt.setString(21, extraerValor(pagina3Data, "impacto_ambiental"));
-                    stmt.setString(22, extraerValor(pagina3Data, "impacto_economico"));
-                    stmt.setString(23, extraerValor(pagina3Data, "impacto_cientificoTecnologico"));
+                    // Página 3
+                    stmt.setString(17, getStr(p3Proyecto, "factores_riesgo_mitigacion"));
+                    stmt.setString(18, getStr(p3Proyecto, "resumen_metodologia"));
+                    stmt.setString(19, getStr(p3Proyecto, "resultados_esperados"));
+                    stmt.setString(20, getStr(p3Proyecto, "impacto_social"));
+                    stmt.setString(21, getStr(p3Proyecto, "impacto_ambiental"));
+                    stmt.setString(22, getStr(p3Proyecto, "impacto_economico"));
+                    stmt.setString(23, getStr(p3Proyecto, "impacto_cientificoTecnologico"));
                     
-                    // Página 9 - Documento extenso
-                    stmt.setString(24, extraerValor(pagina9Data, "doc_extenso"));
+                    // Página 10 (doc_extenso viene de pagina10 o pagina9)
+                    String docExtenso = getStr(pagina10, "doc_extenso");
+                    if(docExtenso.isEmpty()) docExtenso = getStr(pagina9, "doc_extenso");
+                    stmt.setString(24, docExtenso);
                     
                     ResultSet rs = stmt.executeQuery();
                     if (rs.next()) {
@@ -229,368 +289,236 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
                     }
                 }
                 
-                if (proyectoId == 0) {
-                    throw new Exception("No se pudo insertar el proyecto");
-                }
-                
+                if (proyectoId == 0) throw new Exception("No se pudo insertar el proyecto (ID no retornado).");
+
                 // ============================================================
-                // 2. INSERTAR RESPONSABLES (Página 1 - array)
+                // 2. INSERTAR RESPONSABLES
                 // ============================================================
-                // Extraer cada objeto del array responsables
-                List<String> responsablesObjetos = new ArrayList<>();
-                int pos = 0;
-                while (pos < responsablesArray.length()) {
-                    int objStart = responsablesArray.indexOf('{', pos);
-                    if (objStart < 0) break;
-                    int objEnd = encontrarCierreBalanceado(responsablesArray, objStart, '{', '}');
-                    if (objEnd < 0) break;
-                    String obj = responsablesArray.substring(objStart, objEnd + 1);
-                    responsablesObjetos.add(obj);
-                    pos = objEnd + 1;
-                }
-                
-                // Insertar cada responsable
-                for (String respJson : responsablesObjetos) {
-                    String nombreCompleto = extraerValor(respJson, "nombre_completo");
-                    if (!nombreCompleto.isEmpty()) {
-                        String sqlResp = "INSERT INTO responsable (nombre_completo, correo_electronico, telefono, ine, carta_aval) " +
-                                        "VALUES (?, ?, ?, ?, ?) RETURNING id_responsable";
+                for (Object item : responsablesList) {
+                    Map<String, Object> respMap = (Map<String, Object>) item;
+                    String nombre = getStr(respMap, "nombre_completo");
+                    
+                    if (!nombre.isEmpty()) {
+                        String sqlResp = "INSERT INTO responsable (nombre_completo, correo_electronico, telefono, ine, carta_aval) VALUES (?, ?, ?, ?, ?) RETURNING id_responsable";
                         try (PreparedStatement stmt = conn.prepareStatement(sqlResp)) {
-                            stmt.setString(1, nombreCompleto);
-                            stmt.setString(2, extraerValor(respJson, "correo_electronico"));
-                            stmt.setString(3, extraerValor(respJson, "telefono"));
+                            stmt.setString(1, nombre);
+                            stmt.setString(2, getStr(respMap, "correo_electronico"));
+                            stmt.setString(3, getStr(respMap, "telefono"));
                             
-                            // INE y Carta Aval (pueden ser null según el tipo de responsable)
-                            String ine = extraerValor(respJson, "ine");
-                            String cartaAval = extraerValor(respJson, "carta_aval");
+                            String ine = getStr(respMap, "ine");
+                            if (!ine.isEmpty()) stmt.setString(4, ine);
+                            else stmt.setNull(4, java.sql.Types.VARCHAR);
                             
-                            if (ine != null && !ine.isEmpty()) {
-                                stmt.setString(4, ine);
-                            } else {
-                                stmt.setNull(4, java.sql.Types.VARCHAR);
-                            }
-                            
-                            if (cartaAval != null && !cartaAval.isEmpty()) {
-                                stmt.setString(5, cartaAval);
-                            } else {
-                                stmt.setNull(5, java.sql.Types.VARCHAR);
-                            }
+                            String aval = getStr(respMap, "carta_aval");
+                            if (!aval.isEmpty()) stmt.setString(5, aval);
+                            else stmt.setNull(5, java.sql.Types.VARCHAR);
                             
                             ResultSet rs = stmt.executeQuery();
                             if (rs.next()) {
                                 int idResp = rs.getInt("id_responsable");
-                                
-                                // Relacionar con proyecto
-                                String tipoResp = extraerValor(respJson, "tipo_responsable");
-                                String sqlProyResp = "INSERT INTO proyecto_responsables (id_proyecto, id_responsable, tipo_responsable) VALUES (?, ?, ?)";
-                                try (PreparedStatement stmt2 = conn.prepareStatement(sqlProyResp)) {
-                                    stmt2.setInt(1, proyectoId);
-                                    stmt2.setInt(2, idResp);
-                                    stmt2.setString(3, tipoResp);
-                                    stmt2.executeUpdate();
+                                String sqlRel = "INSERT INTO proyecto_responsables (id_proyecto, id_responsable, tipo_responsable) VALUES (?, ?, ?)";
+                                try (PreparedStatement s2 = conn.prepareStatement(sqlRel)) {
+                                    s2.setInt(1, proyectoId);
+                                    s2.setInt(2, idResp);
+                                    s2.setString(3, getStr(respMap, "tipo_responsable"));
+                                    s2.executeUpdate();
                                 }
                             }
                         }
                     }
                 }
-                
+
                 // ============================================================
-                // 3. INSERTAR GRUPO DE TRABAJO (Página 4) - participante1-5
+                // 3. INSERTAR GRUPO DE TRABAJO (Página 4)
                 // ============================================================
                 for (int i = 1; i <= 5; i++) {
-                    String nombre = extraerValor(pagina4Data, "participante" + i + "_nombre");
-                    
+                    String nombre = getStr(p4Participantes, "participante" + i + "_nombre");
                     if (!nombre.isEmpty()) {
-                        String sqlParticipante = "INSERT INTO participante (" +
-                            "nombre_completo, institucion_adscripcion, grado_academico, " +
-                            "area_conocimiento, disciplina, actividades_realizar, doc_comprobante_adscripcion, sexo" + // AGREGADO sexo
-                            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_gt_participante"; // AGREGADO un parámetro más
-
-                        try (PreparedStatement stmt = conn.prepareStatement(sqlParticipante)) {
+                        String sqlPart = "INSERT INTO participante (nombre_completo, institucion_adscripcion, grado_academico, area_conocimiento, disciplina, actividades_realizar, doc_comprobante_adscripcion, sexo) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_gt_participante";
+                        try (PreparedStatement stmt = conn.prepareStatement(sqlPart)) {
                             stmt.setString(1, nombre);
-                            stmt.setString(2, extraerValor(pagina4Data, "participante" + i + "_institucion"));
-                            stmt.setString(3, extraerValor(pagina4Data, "participante" + i + "_grado"));
-                            stmt.setString(4, extraerValor(pagina4Data, "participante" + i + "_area"));
-                            stmt.setString(5, extraerValor(pagina4Data, "participante" + i + "_disciplina"));
-                            stmt.setString(6, extraerValor(pagina4Data, "participante" + i + "_actividades"));
-                            stmt.setString(7, extraerValor(pagina4Data, "participante" + i + "_comprobante"));
-                            stmt.setString(8, extraerValor(pagina4Data, "participante" + i + "_sexo")); // NUEVO: campo sexo
-
+                            stmt.setString(2, getStr(p4Participantes, "participante" + i + "_institucion"));
+                            stmt.setString(3, getStr(p4Participantes, "participante" + i + "_grado"));
+                            stmt.setString(4, getStr(p4Participantes, "participante" + i + "_area"));
+                            stmt.setString(5, getStr(p4Participantes, "participante" + i + "_disciplina"));
+                            stmt.setString(6, getStr(p4Participantes, "participante" + i + "_actividades"));
+                            stmt.setString(7, getStr(p4Participantes, "participante" + i + "_comprobante"));
+                            stmt.setString(8, getStr(p4Participantes, "participante" + i + "_sexo"));
+                            
                             ResultSet rs = stmt.executeQuery();
                             if (rs.next()) {
-                                int idParticipante = rs.getInt("id_gt_participante");
-                                // Relacionar con proyecto
-                                String sqlGrupo = "INSERT INTO gruposDetrabajo (id_proyecto, id_gt_participante) VALUES (?, ?)";
-                                try (PreparedStatement stmt2 = conn.prepareStatement(sqlGrupo)) {
-                                    stmt2.setInt(1, proyectoId);
-                                    stmt2.setInt(2, idParticipante);
-                                    stmt2.executeUpdate();
+                                int idPart = rs.getInt("id_gt_participante");
+                                try (PreparedStatement s2 = conn.prepareStatement("INSERT INTO gruposDetrabajo (id_proyecto, id_gt_participante) VALUES (?, ?)")) {
+                                    s2.setInt(1, proyectoId);
+                                    s2.setInt(2, idPart);
+                                    s2.executeUpdate();
                                 }
                             }
                         }
                     }
                 }
-                
+
                 // ============================================================
-                // 4. INSERTAR ORGANIZACIONES (Página 5) - organizacion1-5
+                // 4. INSERTAR ORGANIZACIONES (Página 5)
                 // ============================================================
                 for (int i = 1; i <= 5; i++) {
-                    String nombre = extraerValor(pagina5Data, "organizacion" + i + "_nombre");
-                    System.out.println("DEBUG: Org " + i + " Nombre = '" + nombre + "'"); // <--- AÑADE ESTO
-
+                    String nombre = getStr(p5Organizaciones, "organizacion" + i + "_nombre");
                     if (!nombre.isEmpty()) {
-                        String sqlOrg = "INSERT INTO organizacion_social (" +
-                            "nombre_razon_social, responsable, domicilio, telefono, " +
-                            "correo_electronico, doc_comprobante_adscripcion, desc_actividad" +
-                            ") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING org_social_id";
-                        
+                        String sqlOrg = "INSERT INTO organizacion_social (nombre_razon_social, responsable, domicilio, telefono, correo_electronico, doc_comprobante_adscripcion, desc_actividad) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING org_social_id";
                         try (PreparedStatement stmt = conn.prepareStatement(sqlOrg)) {
                             stmt.setString(1, nombre);
-                            stmt.setString(2, extraerValor(pagina5Data, "organizacion" + i + "_responsable"));
-                            stmt.setString(3, extraerValor(pagina5Data, "organizacion" + i + "_domicilio"));
-                            stmt.setString(4, extraerValor(pagina5Data, "organizacion" + i + "_telefono"));
-                            stmt.setString(5, extraerValor(pagina5Data, "organizacion" + i + "_email"));
-                            stmt.setString(6, extraerValor(pagina5Data, "organizacion" + i + "_comprobante"));
-                            stmt.setString(7, extraerValor(pagina5Data, "organizacion" + i + "_actividad"));
+                            stmt.setString(2, getStr(p5Organizaciones, "organizacion" + i + "_responsable"));
+                            stmt.setString(3, getStr(p5Organizaciones, "organizacion" + i + "_domicilio"));
+                            stmt.setString(4, getStr(p5Organizaciones, "organizacion" + i + "_telefono"));
+                            stmt.setString(5, getStr(p5Organizaciones, "organizacion" + i + "_email"));
+                            stmt.setString(6, getStr(p5Organizaciones, "organizacion" + i + "_comprobante"));
+                            stmt.setString(7, getStr(p5Organizaciones, "organizacion" + i + "_actividad"));
                             
                             ResultSet rs = stmt.executeQuery();
                             if (rs.next()) {
                                 int idOrg = rs.getInt("org_social_id");
-                                
-                                // Relacionar con proyecto
-                                String sqlProyOrg = "INSERT INTO proyecto_organizaciones (id_proyecto, org_social_id) VALUES (?, ?)";
-                                try (PreparedStatement stmt2 = conn.prepareStatement(sqlProyOrg)) {
-                                    stmt2.setInt(1, proyectoId);
-                                    stmt2.setInt(2, idOrg);
-                                    stmt2.executeUpdate();
+                                try (PreparedStatement s2 = conn.prepareStatement("INSERT INTO proyecto_organizaciones (id_proyecto, org_social_id) VALUES (?, ?)")) {
+                                    s2.setInt(1, proyectoId);
+                                    s2.setInt(2, idOrg);
+                                    s2.executeUpdate();
                                 }
                             }
                         }
                     }
                 }
-                
+
                 // ============================================================
-                // 5. INSERTAR ESTUDIANTES (Página 6) - estudiante1-5
+                // 5. INSERTAR ESTUDIANTES (Página 6)
                 // ============================================================
                 for (int i = 1; i <= 5; i++) {
-                    String nombre = extraerValor(pagina6Data, "estudiante" + i + "_nombre");
-                    
+                    String nombre = getStr(p6Estudiantes, "estudiante" + i + "_nombre");
                     if (!nombre.isEmpty()) {
-                        String sqlEst = "INSERT INTO estudiantes (" +
-                            "nombre_completo, sexo, nivel_academico, tiempo_permanencia, " +
-                            "institucion, programa_educativo, actividades_principales, carta_colaboracion" +
-                            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_estudiante";
-                        
+                        String sqlEst = "INSERT INTO estudiantes (nombre_completo, sexo, nivel_academico, tiempo_permanencia, institucion, programa_educativo, actividades_principales, carta_colaboracion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_estudiante";
                         try (PreparedStatement stmt = conn.prepareStatement(sqlEst)) {
                             stmt.setString(1, nombre);
-                            stmt.setString(2, extraerValor(pagina6Data, "estudiante" + i + "_sexo"));
-                            stmt.setString(3, extraerValor(pagina6Data, "estudiante" + i + "_nivel"));
-                            stmt.setString(4, extraerValor(pagina6Data, "estudiante" + i + "_tiempo"));
-                            stmt.setString(5, extraerValor(pagina6Data, "estudiante" + i + "_institucion"));
-                            stmt.setString(6, extraerValor(pagina6Data, "estudiante" + i + "_programa"));
-                            stmt.setString(7, extraerValor(pagina6Data, "estudiante" + i + "_actividades"));
-                            stmt.setString(8, extraerValor(pagina6Data, "estudiante" + i + "_comprobante"));
+                            stmt.setString(2, getStr(p6Estudiantes, "estudiante" + i + "_sexo"));
+                            stmt.setString(3, getStr(p6Estudiantes, "estudiante" + i + "_nivel"));
+                            stmt.setString(4, getStr(p6Estudiantes, "estudiante" + i + "_tiempo"));
+                            stmt.setString(5, getStr(p6Estudiantes, "estudiante" + i + "_institucion"));
+                            stmt.setString(6, getStr(p6Estudiantes, "estudiante" + i + "_programa"));
+                            stmt.setString(7, getStr(p6Estudiantes, "estudiante" + i + "_actividades"));
+                            stmt.setString(8, getStr(p6Estudiantes, "estudiante" + i + "_comprobante"));
                             
                             ResultSet rs = stmt.executeQuery();
                             if (rs.next()) {
-                                int idEstudiante = rs.getInt("id_estudiante");
-                                
-                                // Relacionar con proyecto
-                                String sqlEstProy = "INSERT INTO estudiantes_participantes (id_proyecto, id_estudiante) VALUES (?, ?)";
-                                try (PreparedStatement stmt2 = conn.prepareStatement(sqlEstProy)) {
-                                    stmt2.setInt(1, proyectoId);
-                                    stmt2.setInt(2, idEstudiante);
-                                    stmt2.executeUpdate();
+                                int idEst = rs.getInt("id_estudiante");
+                                try (PreparedStatement s2 = conn.prepareStatement("INSERT INTO estudiantes_participantes (id_proyecto, id_estudiante) VALUES (?, ?)")) {
+                                    s2.setInt(1, proyectoId);
+                                    s2.setInt(2, idEst);
+                                    s2.executeUpdate();
                                 }
                             }
                         }
                     }
                 }
-                
+
                 // ============================================================
-                // 6. INSERTAR CALENDARIO DE ACTIVIDADES (Página 7)
+                // 6. INSERTAR CALENDARIO (Página 7)
                 // ============================================================
-                // Extraer el array de "semestres" del objeto "pagina7"
-                String semestresArray = extraerArrayPorClave(pagina7Data, "semestres");
+                List<Object> semestresList = getList(pagina7, "semestres");
                 Map<Integer, Integer> semestreIds = new HashMap<>();
-                int semestreCounter = 1; // Contador para saber si es Semestre 1, 2, etc.
+                int semCounter = 1;
+                
+                for (Object semObj : semestresList) {
+                    Map<String, Object> semMap = (Map<String, Object>) semObj;
+                    String desc = getStr(semMap, "descripcion_semestre");
+                    String meta = getStr(semMap, "meta_semestre");
+                    if (desc.isEmpty()) desc = "Semestre " + semCounter;
+                    
+                    // Insertar o buscar Semestre
+                    int idSemestre = -1;
+                    String sqlSem = "INSERT INTO semestres (descripcion_semestre, meta_semestre) VALUES (?, ?) RETURNING id_semestre";
+                    try (PreparedStatement stmt = conn.prepareStatement(sqlSem)) {
+                        stmt.setString(1, desc);
+                        stmt.setString(2, meta);
+                        ResultSet rs = stmt.executeQuery();
+                        if (rs.next()) idSemestre = rs.getInt("id_semestre");
+                    }
+                    
+                    if (idSemestre != -1) {
+                        semestreIds.put(semCounter, idSemestre);
+                        // Actividades del semestre
+                        List<Object> actividades = getList(semMap, "actividades");
+                        for (Object actObj : actividades) {
+                            Map<String, Object> actMap = (Map<String, Object>) actObj;
+                            String nombreAct = getStr(actMap, "nombre");
+                            // Entregables viene como lista de strings, lo convertimos a string simple o JSON string
+                            List<Object> entList = getList(actMap, "entregables");
+                            String entStr = entList.toString(); 
 
-                if (semestresArray != null && semestresArray.length() > 2) {
-                    // Loop para extraer cada objeto {} del array [] de semestres
-                    int posSemestre = 0;
-                    while (posSemestre < semestresArray.length()) {
-                        int objSemStart = semestresArray.indexOf('{', posSemestre);
-                        if (objSemStart < 0) break;
-                        int objSemEnd = encontrarCierreBalanceado(semestresArray, objSemStart, '{', '}');
-                        if (objSemEnd < 0) break;
-                        
-                        String semestreJson = semestresArray.substring(objSemStart, objSemEnd + 1);
-                        posSemestre = objSemEnd + 1;
-
-                        // Extraer datos del semestre (descripción y meta)
-                        String descSemestre = extraerValor(semestreJson, "descripcion_semestre");
-                        String metaSemestre = extraerValor(semestreJson, "meta_semestre");
-
-                        // Insertar el semestre en la BD con los datos reales del formulario
-                        String sqlSem = "INSERT INTO semestres (descripcion_semestre, meta_semestre) " +
-                                       "VALUES (?, ?) " +
-                                       "RETURNING id_semestre";
-                        
-                        Integer idSemestre = null;
-                        try (PreparedStatement stmtSem = conn.prepareStatement(sqlSem)) {
-                            stmtSem.setString(1, descSemestre.isEmpty() ? "Semestre " + semestreCounter : descSemestre);
-                            stmtSem.setString(2, metaSemestre.isEmpty() ? "Meta semestre " + semestreCounter : metaSemestre);
-                            
-                            ResultSet rsSem = stmtSem.executeQuery();
-                            if (rsSem.next()) {
-                                idSemestre = rsSem.getInt("id_semestre");
-                                semestreIds.put(semestreCounter, idSemestre);
-                            }
-                        }
-
-                        if (idSemestre == null) {
-                            // Si falla la inserción (ej. conflicto), intentar buscarlo
-                            String sqlBuscar = "SELECT id_semestre FROM semestres WHERE descripcion_semestre = ?";
-                            try (PreparedStatement stmtBuscar = conn.prepareStatement(sqlBuscar)) {
-                                stmtBuscar.setString(1, descSemestre.isEmpty() ? "Semestre " + semestreCounter : descSemestre);
-                                ResultSet rsBuscar = stmtBuscar.executeQuery();
-                                if (rsBuscar.next()) {
-                                    idSemestre = rsBuscar.getInt("id_semestre");
-                                    semestreIds.put(semestreCounter, idSemestre);
-                                }
-                            }
-                        }
-                        
-                        // Si tenemos un ID de semestre, procesamos sus actividades
-                        if (idSemestre != null) {
-                            String actividadesArray = extraerArrayPorClave(semestreJson, "actividades");
-                            
-                            if (actividadesArray != null && actividadesArray.length() > 2) {
-                                // Loop para extraer cada objeto {} del array [] de actividades
-                                int posActividad = 0;
-                                while (posActividad < actividadesArray.length()) {
-                                    int objActStart = actividadesArray.indexOf('{', posActividad);
-                                    if (objActStart < 0) break;
-                                    int objActEnd = encontrarCierreBalanceado(actividadesArray, objActStart, '{', '}');
-                                    if (objActEnd < 0) break;
-
-                                    String actividadJson = actividadesArray.substring(objActStart, objActEnd + 1);
-                                    posActividad = objActEnd + 1;
-
-                                    // Extraer el nombre de la actividad
-                                    String nombreAct = extraerValor(actividadJson, "nombre");
-                                    String entregablesLista = extraerArrayPorClave(actividadJson, "entregables");
-                                    
-                                    // NOTA: El código actual solo inserta el "nombre" en la columna "entregables".
-                                    // La lista de entregables del JSON (ej: ["libros", "tesis"]) se ignora.
-                                    // Esto coincide con el comportamiento anterior, pero ahora lee la estructura anidada.
-
-                                    if (nombreAct != null && !nombreAct.isEmpty()) {
-                                        // Insertar actividad
-                                        String sqlAct = "INSERT INTO actividades (nombre_actividad, entregables) VALUES (?, ?) RETURNING id_actividad";
-                                        try (PreparedStatement stmtAct = conn.prepareStatement(sqlAct)) {
-                                            stmtAct.setString(1, nombreAct); // El nombre va en la columna 1
-                                            stmtAct.setString(2, entregablesLista); // La lista JSON va en la columna 2
-                                            ResultSet rsAct = stmtAct.executeQuery();
-                                            
-                                            if (rsAct.next()) {
-                                                int idActividad = rsAct.getInt("id_actividad");
-                                                // Relacionar con cronograma
-                                                String sqlCrono = "INSERT INTO cronograma_actividades (id_proyecto, id_actividad, id_semestre) VALUES (?, ?, ?)";
-                                                try (PreparedStatement stmtCrono = conn.prepareStatement(sqlCrono)) {
-                                                    stmtCrono.setInt(1, proyectoId);
-                                                    stmtCrono.setInt(2, idActividad);
-                                                    stmtCrono.setInt(3, idSemestre);
-                                                    stmtCrono.executeUpdate();
-                                                }
-                                            }
+                            if (!nombreAct.isEmpty()) {
+                                String sqlAct = "INSERT INTO actividades (nombre_actividad, entregables) VALUES (?, ?) RETURNING id_actividad";
+                                try (PreparedStatement stmtAct = conn.prepareStatement(sqlAct)) {
+                                    stmtAct.setString(1, nombreAct);
+                                    stmtAct.setString(2, entStr);
+                                    ResultSet rsAct = stmtAct.executeQuery();
+                                    if (rsAct.next()) {
+                                        int idAct = rsAct.getInt("id_actividad");
+                                        try (PreparedStatement sCrono = conn.prepareStatement("INSERT INTO cronograma_actividades (id_proyecto, id_actividad, id_semestre) VALUES (?, ?, ?)")) {
+                                            sCrono.setInt(1, proyectoId);
+                                            sCrono.setInt(2, idAct);
+                                            sCrono.setInt(3, idSemestre);
+                                            sCrono.executeUpdate();
                                         }
                                     }
-                                } // Fin loop actividades
+                                }
                             }
                         }
-                        semestreCounter++;
-                    } // Fin loop semestres
-                }
-                
-                // ============================================================
-                // 7. INSERTAR PRESUPUESTO (Página 8) - (LÓGICA MODIFICADA)
-                // ============================================================
-                // 'pagina8Data' ahora contiene el ARRAY de partidas [{}, {}, ...]
-                int posPartida = 0;
-                while (posPartida < pagina8Array.length()) {
-                    int objStart = pagina8Array.indexOf('{', posPartida);
-                    if (objStart < 0) break;
-                    int objEnd = encontrarCierreBalanceado(pagina8Array, objStart, '{', '}');
-                    if (objEnd < 0) break;
-
-                    String partidaJson = pagina8Array.substring(objStart, objEnd + 1);
-                    posPartida = objEnd + 1;
-
-                    // Extraer datos del JSON de la partida
-                    String nombre = extraerValor(partidaJson, "nombre");
-                    String justificacion = extraerValor(partidaJson, "justificacion");
-                    String montosJson = extraerObjetoPorClave(partidaJson, "montos");
-
-                    double monto_s1 = 0;
-                    double monto_s2 = 0;
-                    try {
-                        String s1 = extraerValor(montosJson, "semestre1");
-                        // Usamos la misma limpieza de $ y comas que tenía el código anterior
-                        if (!s1.isEmpty())
-                            monto_s1 = Double.parseDouble(s1.replace(",", "").replace("$", "").trim());
-                        String s2 = extraerValor(montosJson, "semestre2");
-                        // Usamos la misma limpieza de $ y comas que tenía el código anterior
-                        if (!s2.isEmpty())
-                            monto_s2 = Double.parseDouble(s2.replace(",", "").replace("$", "").trim());
-                    } catch (Exception e) {
-                        // Ignorar errores de conversión (Esto está bien, no es un error de BD)
                     }
+                    semCounter++;
+                }
 
-                    // Solo insertar si hay nombre Y (justificación o montos)
-                    if (!nombre.isEmpty() && (!justificacion.isEmpty() || monto_s1 > 0 || monto_s2 > 0)) {
-                        // Insertar partida
-                        String sqlPartida = "INSERT INTO partidas (nombre, justificacion) VALUES (?, ?) RETURNING id_partidas";
-                        try (PreparedStatement stmt = conn.prepareStatement(sqlPartida)) {
+                // ============================================================
+                // 7. INSERTAR PRESUPUESTO (Página 8)
+                // ============================================================
+                for (Object parObj : p8PartidasList) {
+                    Map<String, Object> partida = (Map<String, Object>) parObj;
+                    String nombre = getStr(partida, "nombre");
+                    String justif = getStr(partida, "justificacion");
+                    Map<String, Object> montos = getMap(partida, "montos");
+                    
+                    double m1 = 0, m2 = 0;
+                    try { m1 = Double.parseDouble(getStr(montos, "semestre1").replaceAll("[^0-9.]", "")); } catch(Exception e){}
+                    try { m2 = Double.parseDouble(getStr(montos, "semestre2").replaceAll("[^0-9.]", "")); } catch(Exception e){}
+                    
+                    if (!nombre.isEmpty() && (!justif.isEmpty() || m1 > 0 || m2 > 0)) {
+                        String sqlPar = "INSERT INTO partidas (nombre, justificacion) VALUES (?, ?) RETURNING id_partidas";
+                        try (PreparedStatement stmt = conn.prepareStatement(sqlPar)) {
                             stmt.setString(1, nombre);
-                            stmt.setString(2, justificacion.isEmpty() ? "Sin justificación" : justificacion);
-
+                            stmt.setString(2, justif.isEmpty() ? "Sin justificación" : justif);
                             ResultSet rs = stmt.executeQuery();
                             if (rs.next()) {
                                 int idPartida = rs.getInt("id_partidas");
-                                // Insertar montos para cada semestre
-                                for (int sem = 1; sem <= 2; sem++) {
-                                    Integer idSemestre = semestreIds.get(sem);
-                                    if (idSemestre == null)
-                                        continue;
-                                    double monto = (sem == 1) ? monto_s1 : monto_s2;
-                                    if (monto > 0) {
-                                        String sqlSemProj = "INSERT INTO semestres_proyecto (id_semestre, id_proyecto, id_partidas, monto) VALUES (?, ?, ?, ?)";
-                                        try (PreparedStatement stmt2 = conn.prepareStatement(sqlSemProj)) {
-                                            stmt2.setInt(1, idSemestre);
-                                            stmt2.setInt(2, proyectoId);
-                                            stmt2.setInt(3, idPartida);
-                                            stmt2.setDouble(4, monto);
-                                            stmt2.executeUpdate();
-                                        }
+                                // Relacionar montos
+                                if (semestreIds.containsKey(1) && m1 > 0) {
+                                    try(PreparedStatement s2 = conn.prepareStatement("INSERT INTO semestres_proyecto (id_semestre, id_proyecto, id_partidas, monto) VALUES (?, ?, ?, ?)")){
+                                        s2.setInt(1, semestreIds.get(1)); s2.setInt(2, proyectoId); s2.setInt(3, idPartida); s2.setDouble(4, m1); s2.executeUpdate();
+                                    }
+                                }
+                                if (semestreIds.containsKey(2) && m2 > 0) {
+                                    try(PreparedStatement s2 = conn.prepareStatement("INSERT INTO semestres_proyecto (id_semestre, id_proyecto, id_partidas, monto) VALUES (?, ?, ?, ?)")){
+                                        s2.setInt(1, semestreIds.get(2)); s2.setInt(2, proyectoId); s2.setInt(3, idPartida); s2.setDouble(4, m2); s2.executeUpdate();
                                     }
                                 }
                             }
                         }
                     }
                 }
-                
+
                 // ============================================================
-                // 8. RELACIONAR USUARIO CON PROYECTO
+                // 8. RELACIONAR USUARIO Y FINALIZAR
                 // ============================================================
-                String sqlUsuarioProyecto = "INSERT INTO proyecto_usuarios (id_proyecto, id_usuario) VALUES (?, ?)";
-                try (PreparedStatement stmt = conn.prepareStatement(sqlUsuarioProyecto)) {
+                try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO proyecto_usuarios (id_proyecto, id_usuario) VALUES (?, ?)")) {
                     stmt.setInt(1, proyectoId);
                     stmt.setInt(2, userId);
                     stmt.executeUpdate();
                 }
                 
-                // Commit de la transacción
                 conn.commit();
                 exito = true;
                 mensaje = "Proyecto registrado exitosamente con ID: " + proyectoId;
@@ -601,6 +529,7 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
                 throw e;
             }
         }
+
         
     } catch (ClassNotFoundException e) {
         mensaje = "Error: Driver de PostgreSQL no encontrado";
@@ -639,7 +568,7 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
                 
                 <div class="flex justify-center space-x-4 mt-8">
                     <% if (exito) { %>
-                        <a href="<%= request.getContextPath() %>/pages/responsableDeproyecto/proyectos/proyectos.jsp" 
+                        <a href="<%= request.getContextPath() %>/pages/responsableDeproyecto/proyectos/index.jsp" 
                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-[#7A1737] hover:bg-[#5c0f2a] transition duration-200">
                             <i class="fas fa-list mr-2"></i>Ver Mis Proyectos
                         </a>
