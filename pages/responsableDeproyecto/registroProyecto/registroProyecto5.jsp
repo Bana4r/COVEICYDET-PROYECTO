@@ -32,7 +32,7 @@
                     e.printStackTrace();
                 }
                 if (yaTieneProyecto) {
-                    response.sendRedirect(request.getContextPath() + "/pages/responsableDeproyecto/paginaPrincipal/main.jsp");
+                    response.sendRedirect(request.getContextPath() + "/pages/responsableDeproyecto/paginaPrincipal/index.jsp");
                     return;
                 }
         }
