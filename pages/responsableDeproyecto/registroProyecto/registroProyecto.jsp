@@ -14,31 +14,8 @@
     }
 %>
 
-<%
-    //--- BLOQUEO DE SEGURIDAD ---//
-    Integer idUsuarioSeguridad = (Integer) session.getAttribute("id_usuario");
+<%@ include file="/WEB-INF/seguridadProyecto.jsp" %>
 
-    if (idUsuarioSeguridad != null) {
-        boolean yaTieneProyecto = false;
-
-        try (Connection conn = getConnection();
-            PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM proyecto_usuarios WHERE id_usuario = ? LIMIT 1")) {
-
-                ps.setInt(1, idUsuarioSeguridad);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        yaTieneProyecto = true;
-                    }
-                }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                if (yaTieneProyecto) {
-                    response.sendRedirect(request.getContextPath() + "/pages/responsableDeproyecto/paginaPrincipal/index.jsp");
-                    return;
-                }
-        }
-%>
 <!DOCTYPE html>
 <html lang="es">
 <head>

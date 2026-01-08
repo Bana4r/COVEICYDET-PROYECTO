@@ -1,44 +1,8 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <% if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) { String n=request.getRequestURI()+(request.getQueryString()!=null?("?"+request.getQueryString()):""); response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+java.net.URLEncoder.encode(n,"UTF-8")); return; } %>
 
-<%!
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/proyectos";
-    private static final String DB_USER = "dbusr25";
-    private static final String DB_PASSWORD = "mxToro24000Chocolate";
+<%@ include file="/WEB-INF/seguridadProyecto.jsp" %>
 
-    private static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-    }
-%>
-
-<%
-    //--- BLOQUEO DE SEGURIDAD ---//
-    Integer idUsuarioSeguridad = (Integer) session.getAttribute("id_usuario");
-
-    if (idUsuarioSeguridad != null) {
-        boolean yaTieneProyecto = false;
-
-        try (Connection conn = getConnection();
-            PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM proyecto_usuarios WHERE id_usuario = ? LIMIT 1")) {
-
-                ps.setInt(1, idUsuarioSeguridad);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        yaTieneProyecto = true;
-                    }
-                }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                if (yaTieneProyecto) {
-                    response.sendRedirect(request.getContextPath() + "/pages/responsableDeproyecto/paginaPrincipal/index.jsp");
-                    return;
-                }
-        }
-%>
-
-<!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
