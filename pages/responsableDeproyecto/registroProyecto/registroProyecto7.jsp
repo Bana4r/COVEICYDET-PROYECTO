@@ -497,7 +497,7 @@
 
                     <!-- Navegación -->
                     <div class="flex flex-col-reverse gap-4 pt-8 border-t border-gray-200 sm:flex-row sm:justify-end">
-                        <button type="button" onclick="guardarBorrador('formPagina2', 'pagina2', this)"
+                        <button type="button" onclick="guardarBorrador('formPagina7', 'pagina7', this)"
                                 class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition duration-200 flex items-center justify-center">
                             <i class="fas fa-save mr-2"></i>Guardar borrador
                         </button>
@@ -934,15 +934,15 @@
         // Función para guardar borrador
         async function guardarBorrador(formId, pagina, button) {
             console.log('[cronograma] Iniciando guardado de borrador...');
-            
+
             // Deshabilitar el botón y mostrar mensaje de "Guardando..."
             const originalText = button.innerHTML;
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
-            
+
             // Pequeña pausa para que la UI se actualice
             await new Promise(resolve => setTimeout(resolve, 100));
-            
+
             // Validar que cada semestre tenga al menos una actividad
             let semestresValidos = true;
             for (let i = 1; i <= 2; i++) {
@@ -955,7 +955,7 @@
                     break;
                 }
             }
-            
+
             if (!semestresValidos) {
                 console.error('[cronograma] ❌ Validación fallida: faltan actividades');
                 return;
@@ -1020,29 +1020,35 @@
             }
             
             const jsonData = {
-                cronograma: {
+                pagina7: {
                     semestres: semestres
                 }
             };
-            
+
             console.log('[cronograma] JSON completo a guardar:', JSON.stringify(jsonData, null, 2));
-            
+
             try {
                 localStorage.setItem('proyecto_borrador_pagina7', JSON.stringify(jsonData));
                 console.log('[cronograma] ✅ Borrador guardado exitosamente');
                 
                 // Pequeña pausa antes de verificar
                 await new Promise(resolve => setTimeout(resolve, 50));
-                
-                // Verificación
-                const verify = localStorage.getItem('proyecto_borrador_cronograma');
+
+                // Verificación corregida
+                const verify = localStorage.getItem('proyecto_borrador_pagina7');
                 if (verify) {
                     const parsed = JSON.parse(verify);
                     console.log('[cronograma] ✅ Verificación exitosa - datos recuperables');
-                    console.log('[cronograma] Verificación - Total semestres:', parsed.cronograma.semestres.length);
-                    parsed.cronograma.semestres.forEach(s => {
-                        console.log(`[cronograma] Verificación - Semestre ${s.numero}: ${s.actividades.length} actividades`);
-                    });
+                    // Access the data using the new structure
+                    const semestresData = parsed.pagina7 ? parsed.pagina7.semestres : parsed.semestres;
+                    if (semestresData) {
+                        console.log('[cronograma] Verificación - Total semestres:', semestresData.length);
+                        semestresData.forEach(s => {
+                            console.log(`[cronograma] Verificación - Semestre ${s.numero}: ${s.actividades.length} actividades`);
+                        });
+                    } else {
+                        console.error('[cronograma] ❌ Error: No se encontraron datos de semestres en la verificación');
+                    }
                 } else {
                     console.error('[cronograma] ❌ Error: No se pudo verificar el guardado');
                 }
@@ -1074,11 +1080,14 @@
                 const data = JSON.parse(savedData);
                 console.log('[cronograma] 📦 Borrador encontrado:', data);
                 
-                if (data.cronograma && data.cronograma.semestres) {
-                    console.log('[cronograma] Total de semestres a cargar:', data.cronograma.semestres.length);
+                // CORRECCIÓN: Acceder a la estructura nueva pagina7.semestres
+                const listaSemestres = data.pagina7 ? data.pagina7.semestres : data.semestres || (data.cronograma ? data.cronograma.semestres : null);
+                
+                if (listaSemestres) {
+                    console.log('[cronograma] Total de semestres a cargar:', listaSemestres.length);
                     
                     // Procesar semestres secuencialmente
-                    for (const semestre of data.cronograma.semestres) {
+                    for (const semestre of listaSemestres) {
                         const semestreNum = semestre.numero;
                         
                         console.log('\n[cronograma] ===== CARGANDO SEMESTRE', semestreNum, '=====');
