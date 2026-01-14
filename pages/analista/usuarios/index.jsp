@@ -12,12 +12,7 @@
     } 
 %>
 
-<%!
-    // Configuración de la base de datos
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/proyectos?useUnicode=true&characterEncoding=UTF-8";
-    private static final String DB_USER = "dbusr25";
-    private static final String DB_PASSWORD = "mxToro24000Chocolate";
-%>
+<%@ include file="/WEB-INF/conexion.jsp"%>
 
 <%
     // Lógica para obtener usuarios responsables
@@ -27,10 +22,10 @@
     int totalUsuarios = 0;
     int totalProyectos = 0;
 
-    try {
-        Class.forName("org.postgresql.Driver");
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
-            conexionExitosa = true;
+    // Verificar si la conexión del archivo conexion.jsp fue exitosa
+    if (conn != null) {
+        conexionExitosa = true;
+        try {
 
             // --- SQL ACTUALIZADO AL NUEVO ESQUEMA ---
             // 1. Usa 'usuario' en singular.
@@ -45,7 +40,8 @@
                        "u.RFC, " +
                        "u.correo_electronico, " +
                        "u.estado, " + 
-                       "t.tipo_usuario as rol, " +  // Corregido: obtiene el texto de la tabla t
+                       "t.tipo_usuario as rol, " +  
+                       "u.comprobantevigencia," +
                        
                        // Conteos
                        "COUNT(p.id_proyecto) as total_proyectos, " +
@@ -82,7 +78,7 @@
                     usuario.put("correo", rs.getString("correo_electronico"));
                     usuario.put("estado", rs.getInt("estado"));
                     usuario.put("rol", rs.getString("rol"));
-                    
+                    usuario.put("comprobantevigencia", rs.getString("comprobantevigencia"));
                     // Estadísticas
                     int total = rs.getInt("total_proyectos");
                     usuario.put("totalProyectos", total);
@@ -98,16 +94,19 @@
                 
                 totalUsuarios = usuariosResponsables.size();
             }
+        } catch (SQLException e) {
+            System.err.println("Error de base de datos: " + e.getMessage());
+            e.printStackTrace();
+            mensajeError = "Error de conexión a la base de datos: " + e.getMessage();
+        } finally {
+            // Cerrar la conexión
+            if (conn != null) {
+                try { conn.close(); } catch (SQLException e) { /* ignorar */ }
+            }
         }
-        
-    } catch (ClassNotFoundException e) {
-        System.err.println("Error: No se encontró el driver de PostgreSQL");
-        e.printStackTrace();
-        mensajeError = "Driver de base de datos no encontrado.";
-    } catch (SQLException e) {
-        System.err.println("Error de base de datos: " + e.getMessage());
-        e.printStackTrace();
-        mensajeError = "Error de conexión a la base de datos: " + e.getMessage();
+    } else {
+        // Si la conexión falló, mostrar el error del archivo conexion.jsp
+        mensajeError = dbError != null && !dbError.isEmpty() ? dbError : "No se pudo establecer conexión con la base de datos.";
     }
 
     SimpleDateFormat formatoFecha = new SimpleDateFormat("dd/MM/yyyy HH:mm");
@@ -122,6 +121,12 @@
     <title>COVEICYDET - Usuarios Responsables</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #7A1737;
+            --secondary: #A8253C;
+        }
+        
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -142,10 +147,111 @@
             transform: translateY(-2px);
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
+        .descargar-excel {
+            display: inline-block;
+            background-color: #c19140;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .descarga-comprobante-vigencia {
+            display: inline-block;
+            background-color: #b07f2f;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        /*modal styles*/
+        .modal-close {
+          background: none;
+          border: none;
+          color: white;
+          font-size: 1.5rem;
+          cursor: pointer;
+          padding: 0;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+        }
+        
+        .modal-close:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal {
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.8);
+          z-index: 1000;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .modal-content {
+          background: white;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 900px;
+          max-height: 90vh;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .modal-header {
+          padding: 1rem 1.5rem;
+          background: var(--primary);
+          color: white;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .modal-body {
+          flex: 1;
+          padding: 0;
+          overflow: hidden;
+        }
+
+        .pdf-viewer {
+          width: 100%;
+          height: 70vh;
+          border: none;
+        }
     </style>
 </head>
 <body class="min-h-screen">
     <%@ include file="../header.jsp" %>
+
+    <div id="pdfModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="pdfTitle" class="font-bold">Visualizando documento</h3>
+          <button class="modal-close" onclick="closePDFModal()">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <iframe id="pdfFrame" class="pdf-viewer" src="" frameborder="0"></iframe>
+        </div>
+      </div>
+    </div>
     
     <section class="hero-pattern text-white py-8">
         <div class="container mx-auto px-4 text-center">
@@ -194,9 +300,17 @@
         
         <% if (!usuariosResponsables.isEmpty()) { %>
             <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
-                <div class="px-6 py-4 bg-gradient-to-r from-[#7A1737] to-[#A8253C] text-white">
-                    <h2 class="text-xl font-bold">Directorio de Usuarios Responsables</h2>
-                    <p class="text-sm opacity-90">Información de contacto y perfil de cada responsable registrado</p>
+                <div class="px-6 py-4 bg-gradient-to-r from-[#7A1737] to-[#A8253C] text-white flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold">Directorio de Usuarios Responsables</h2>
+                        <p class="text-sm opacity-90">Información de contacto y perfil de cada responsable registrado</p>
+                    </div>
+                    <a href="archivoXls.jsp" class="inline-flex items-center bg-[#B28854] hover:bg-[#9A7148] text-white px-4 py-2 rounded-lg font-medium transition duration-200">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Descargar Excel
+                    </a>
                 </div>
             </div>
             
@@ -235,6 +349,37 @@
                                     <p class="text-sm font-medium text-[#7A1737]">Responsable de Proyecto</p>
                                     <p class="text-sm text-gray-500">ID de Usuario: <%= id %></p>
                                 </div>
+                                <!-- boton color cafe -->
+                                <%
+                                    String comprobanteVigencia = (String) usuario.get("comprobantevigencia");
+                                    boolean tieneComprobante = comprobanteVigencia != null && !comprobanteVigencia.trim().isEmpty();
+                                    String rutaComprobante = "";
+                                    if (tieneComprobante) {
+                                        if (comprobanteVigencia.startsWith("http://") || comprobanteVigencia.startsWith("https://")) {
+                                            rutaComprobante = comprobanteVigencia;
+                                        } else {
+                                            // la ruta es uploads/{id}
+                                            rutaComprobante = request.getContextPath() + "/" + comprobanteVigencia;
+                                        }
+                                    }
+                                %>
+                                <% if (tieneComprobante) { %>
+                                    <button onclick="visualizarPDF('<%= rutaComprobante %>', 'Comprobante de Vigencia - <%= nombreCompletoUsuario.trim().replace("'", "\\'") %>')" 
+                                            class="descarga-comprobante-vigencia ml-4 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                        Ver Comprobante Vigencia
+                                    </button>
+                                    <% } else { %>
+                                    <span class="text-gray-400 text-sm flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8z"></path>
+                                        </svg>
+                                        Sin Comprobante
+                                    </span>
+                                    <% } %>
                                 <div class="flex-shrink-0">
                                     <% if (isActivo) { %>
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
@@ -339,7 +484,7 @@
                                         </div>
                                         
                                         <div class="pt-2 space-y-2">
-                                            <button onclick="copyToClipboard('<%= correo %>')" 
+                                            <button onclick="copyToClipboard(event, '<%= correo %>')" 
                                                     class="w-full bg-[#7A1737] hover:bg-[#A8253C] text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
                                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
@@ -366,7 +511,7 @@
                                             <% } %>
                                             
                                             <% if (totalProyectosUsuario > 0) { %>
-                                                <a href="/proyectos/pages/analista/proyectos/proyectos.jsp" 
+                                                <a href="/proyectos/pages/analista/proyectos/" 
                                                    class="w-full bg-[#B28854] hover:bg-[#9A7148] text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
                                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -396,30 +541,99 @@
     <%@ include file="/footer.jsp" %>
     
     <script>
-        // Función para copiar email al portapapeles
-        function copyToClipboard(email) {
-            navigator.clipboard.writeText(email).then(function() {
-                // Mostrar confirmación temporal
-                const originalButton = event.target.closest('button');
-                const originalContent = originalButton.innerHTML;
-                
-                originalButton.innerHTML = `
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    ¡Copiado!
-                `;
-                originalButton.classList.remove('bg-[#7A1737]', 'hover:bg-[#A8253C]');
-                originalButton.classList.add('bg-green-600', 'hover:bg-green-700');
-                setTimeout(() => {
-                    originalButton.innerHTML = originalContent;
-                    originalButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-                    originalButton.classList.add('bg-[#7A1737]', 'hover:bg-[#A8253C]');
-                }, 2000);
-            }).catch(function(err) {
-                console.error('Error al copiar email: ', err);
-                alert('No se pudo copiar el email al portapapeles');
-            });
+        // Función para copiar email al portapapeles (compatible con HTTP)
+        function copyToClipboard(event, email) {
+            let success = false;
+            
+            // Método 1: Usar navigator.clipboard si está disponible (HTTPS/localhost)
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(email).then(function() {
+                    showCopySuccess(event);
+                }).catch(function() {
+                    // Si falla, intentar método alternativo
+                    success = fallbackCopyToClipboard(email);
+                    if (success) {
+                        showCopySuccess(event);
+                    } else {
+                        alert('No se pudo copiar el email al portapapeles');
+                    }
+                });
+            } else {
+                // Método 2: Fallback para HTTP usando execCommand
+                success = fallbackCopyToClipboard(email);
+                if (success) {
+                    showCopySuccess(event);
+                } else {
+                    alert('No se pudo copiar el email al portapapeles');
+                }
+            }
+        }
+        
+        // Método alternativo para copiar (funciona en HTTP)
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+            } catch (err) {
+                console.error('Error al copiar:', err);
+            }
+            
+            document.body.removeChild(textArea);
+            return success;
+        }
+        
+        // Mostrar confirmación visual de copia exitosa
+        function showCopySuccess(event) {
+            const originalButton = event.target.closest('button');
+            const originalContent = originalButton.innerHTML;
+            
+            originalButton.innerHTML = `
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                ¡Copiado!
+            `;
+            originalButton.classList.remove('bg-[#7A1737]', 'hover:bg-[#A8253C]');
+            originalButton.classList.add('bg-green-600', 'hover:bg-green-700');
+            setTimeout(() => {
+                originalButton.innerHTML = originalContent;
+                originalButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                originalButton.classList.add('bg-[#7A1737]', 'hover:bg-[#A8253C]');
+            }, 2000);
+        }
+
+        function visualizarPDF(ruta, nombre) {
+          const modal = document.getElementById('pdfModal');
+          const pdfFrame = document.getElementById('pdfFrame');
+          const pdfTitle = document.getElementById('pdfTitle');
+
+          pdfFrame.src = ruta;
+          pdfTitle.textContent = nombre;
+          modal.style.display = 'flex';
+
+          // Evitar que el modal se cierre al hacer clic en el contenido
+          modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+              closePDFModal();
+            }
+          });
+        }
+
+        function closePDFModal() {
+          const modal = document.getElementById('pdfModal');
+          const pdfFrame = document.getElementById('pdfFrame');
+
+          pdfFrame.src = '';
+          modal.style.display = 'none';
         }
         
         // Agregar efecto de hover mejorado a las tarjetas
