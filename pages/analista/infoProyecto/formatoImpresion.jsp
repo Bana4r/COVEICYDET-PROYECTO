@@ -12,11 +12,7 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
 %>
 
 <%!
-    // --- CONFIGURACIÓN Y UTILIDADES ---
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/proyectos";
-    private static final String DB_USER = "dbusr25";
-    private static final String DB_PASSWORD = "mxToro24000Chocolate";
-
+    // --- UTILIDADES ---
     public String escapeXml(Object input) {
         if (input == null) return "";
         return String.valueOf(input).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
@@ -49,10 +45,14 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
     if (proyectoId == null || proyectoId.trim().isEmpty()) {
         mensajeError = "No se recibió el ID del proyecto.";
     } else {
-        Connection conn = null;
+        // Incluir conexión centralizada
+        %>
+        <%@ include file="/WEB-INF/conexion.jsp" %>
+        <%
         try {
-            Class.forName("org.postgresql.Driver");
-            conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            if (conn == null || dbError.length() > 0) {
+                throw new Exception("Error de conexión: " + dbError);
+            }
             
             // 1. DATOS GENERALES
             String sqlP = "SELECT p.*, c.nombre_convocatoria FROM Proyectos p " +
@@ -119,38 +119,46 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
                     }
                 }
 
-                // 3. CRONOGRAMA
-                String sqlCron = "SELECT s.descripcion_semestre, a.nombre_actividad FROM Cronograma_Actividades ca " +
+                // 3. CRONOGRAMA - Agrupado por semestre
+                String sqlCron = "SELECT s.id_semestre, s.descripcion_semestre, s.meta_semestre, a.nombre_actividad, a.entregables " +
+                                 "FROM Cronograma_Actividades ca " +
                                  "JOIN actividades a ON ca.id_actividad = a.id_actividad " +
                                  "JOIN semestres s ON ca.id_semestre = s.id_semestre " +
-                                 "WHERE ca.id_proyecto = ? ORDER BY s.id_semestre";
+                                 "WHERE ca.id_proyecto = ? ORDER BY s.id_semestre, a.id_actividad";
                 try(PreparedStatement stmt = conn.prepareStatement(sqlCron)){
                     stmt.setInt(1, Integer.parseInt(proyectoId));
                     try(ResultSet rs = stmt.executeQuery()){
                         while(rs.next()){
                             Map<String,Object> m = new HashMap<>();
-                            m.put("periodo", rs.getString("descripcion_semestre"));
+                            m.put("id_semestre", rs.getInt("id_semestre"));
+                            m.put("semestre", rs.getString("descripcion_semestre"));
+                            m.put("meta", rs.getString("meta_semestre"));
                             m.put("actividad", rs.getString("nombre_actividad"));
+                            m.put("entregables", rs.getString("entregables"));
                             cronograma.add(m);
                         }
                     }
                 }
                 
-                // 4. PRESUPUESTO (Unión: semestres_proyecto -> partidas)
-                // Nota: Según diagrama, 'monto' está en 'semestres_proyecto' y 'nombre_partida'/'justificacion' en 'partidas'
+                // 4. PRESUPUESTO - Agrupado por partida con montos por semestre
                 try {
-                    String sqlPres = "SELECT p.nombre_partida, sp.monto, p.justificacion " +
+                    String sqlPres = "SELECT p.id_partidas, p.nombre, p.justificacion, s.id_semestre, s.descripcion_semestre, sp.monto " +
                                      "FROM semestres_proyecto sp " +
                                      "JOIN partidas p ON sp.id_partidas = p.id_partidas " +
-                                     "WHERE sp.id_proyecto = ?";
+                                     "JOIN semestres s ON sp.id_semestre = s.id_semestre " +
+                                     "WHERE sp.id_proyecto = ? " +
+                                     "ORDER BY p.id_partidas, s.id_semestre";
                     try(PreparedStatement stmt = conn.prepareStatement(sqlPres)){
                         stmt.setInt(1, Integer.parseInt(proyectoId));
                         try(ResultSet rs = stmt.executeQuery()){
                             while(rs.next()){
                                 Map<String,Object> m = new HashMap<>();
-                                m.put("partida", rs.getString("nombre_partida"));
-                                m.put("monto", rs.getDouble("monto"));
+                                m.put("id_partida", rs.getInt("id_partidas"));
+                                m.put("partida", rs.getString("nombre"));
                                 m.put("justificacion", rs.getString("justificacion"));
+                                m.put("id_semestre", rs.getInt("id_semestre"));
+                                m.put("semestre", rs.getString("descripcion_semestre"));
+                                m.put("monto", rs.getDouble("monto"));
                                 presupuesto.add(m);
                             }
                         }
@@ -158,6 +166,7 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
                 } catch(Exception ePres) {
                     // Si falla presupuesto, no rompemos todo, solo lo logueamos
                     System.out.println("Error presupuesto: " + ePres.getMessage());
+                    ePres.printStackTrace();
                 }
                 // --- AGREGAR ESTO DESPUÉS DE LA CONSULTA DE PRESUPUESTO ---
                 // 5. OBTENER TODAS LAS CONVOCATORIAS PARA EL LISTADO
@@ -284,7 +293,7 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
         <table>
             <tr class="bold">
                 <td>Convocatoria</td>
-                <td style="width: 120px; text-align: center;">Marque con "X"</td>
+                <td style="width: 120px; text-align: center;"> </td>
             </tr>
             <% 
             // Si no hay convocatorias en la BD, mostramos un mensaje vacío o filas vacías
@@ -307,13 +316,15 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
         <div class="header-title">V) Área de conocimiento</div>
         <% String area = (String)proyecto.get("area_conocimiento"); %>
         <table style="font-size: 9pt;">
-            <tr><td>Físico-Matemáticas y Ciencias de la Tierra</td><td class="center-text" style="width: 30px;"><%= marcar(area, "Físico-Matemáticas y Ciencias de la Tierra") %></td></tr>
-            <tr><td>Biología y Química</td><td class="center-text"><%= marcar(area, "Biología y Química") %></td></tr>
-            <tr><td>Medicina y Ciencias de la Salud</td><td class="center-text"><%= marcar(area, "Medicina y Ciencias de la Salud") %></td></tr>
-            <tr><td>Humanidades</td><td class="center-text"><%= marcar(area, "Humanidades") %></td></tr>
-            <tr><td>Ciencias Sociales</td><td class="center-text"><%= marcar(area, "Ciencias Sociales") %></td></tr>
-            <tr><td>Ingenierías y Desarrollo Tecnológico</td><td class="center-text"><%= marcar(area, "Ingenierías y Desarrollo Tecnológico") %></td></tr>
-            <tr><td>Interdisciplinaria</td><td class="center-text"><%= marcar(area, "Interdisciplinaria") %></td></tr>
+            <tr><td>I - Físico-Matemáticas y Ciencias de la Tierra</td><td class="center-text" style="width: 30px;"><%= marcar(area, "fisicoMatematicas") %></td></tr>
+            <tr><td>II - Biología y Química</td><td class="center-text"><%= marcar(area, "biologiaQuimica") %></td></tr>
+            <tr><td>III - Medicina y Ciencias de la Salud</td><td class="center-text"><%= marcar(area, "medicinaCienciasSalud") %></td></tr>
+            <tr><td>IV - Ciencias de la Conducta y la Educación</td><td class="center-text"><%= marcar(area, "cienciasConductaEducacion") %></td></tr>
+            <tr><td>V - Humanidades</td><td class="center-text"><%= marcar(area, "humanidades") %></td></tr>
+            <tr><td>VI - Ciencias Sociales</td><td class="center-text"><%= marcar(area, "cienciasSociales") %></td></tr>
+            <tr><td>VII - Ciencias de Agricultura, Agropecuarias, Forestales y de Ecosistemas</td><td class="center-text"><%= marcar(area, "cienciasAgricultura") %></td></tr>
+            <tr><td>VIII - Ingenierías y Desarrollo Tecnológico</td><td class="center-text"><%= marcar(area, "ingenieriasDesarrollo") %></td></tr>
+            <tr><td>IX - Interdisciplinaria</td><td class="center-text"><%= marcar(area, "interdisciplinaria") %></td></tr>
         </table>
         
         <div class="header-title">VI) Sector de desarrollo:</div>
@@ -325,21 +336,25 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
         <% String tlr = (String)proyecto.get("tlr"); %>
         <table style="font-size: 9pt;">
             <tr class="bold"><td style="width: 90%">Niveles de Maduración Tecnológica</td><td>TRL</td></tr>
-            <tr><td>TRL 1: Principios básicos observados.</td><td class="center-text"><%= marcar(tlr, "TRL 1") %></td></tr>
-            <tr><td>TRL 2: Concepto y aplicación formulada.</td><td class="center-text"><%= marcar(tlr, "TRL 2") %></td></tr>
-            <tr><td>TRL 3: Prueba de concepto.</td><td class="center-text"><%= marcar(tlr, "TRL 3") %></td></tr>
-            <tr><td>TRL 4: Validación laboratorio.</td><td class="center-text"><%= marcar(tlr, "TRL 4") %></td></tr>
-            <tr><td>TRL 5: Validación entorno relevante.</td><td class="center-text"><%= marcar(tlr, "TRL 5") %></td></tr>
-            <tr><td>TRL 6: Demostración tecnológica.</td><td class="center-text"><%= marcar(tlr, "TRL 6") %></td></tr>
-            <tr><td>TRL 7 - 9: Prototipos y Productos finales.</td><td class="center-text"><%= (marcar(tlr, "TRL 7").equals("X") || marcar(tlr, "TRL 8").equals("X") || marcar(tlr, "TRL 9").equals("X")) ? "X" : "" %></td></tr>
+            <tr><td>TRL 1: Principios básicos observados.</td><td class="center-text"><%= marcar(tlr, "TRL1") %></td></tr>
+            <tr><td>TRL 2: Concepto y aplicación formulada.</td><td class="center-text"><%= marcar(tlr, "TRL2") %></td></tr>
+            <tr><td>TRL 3: Prueba de concepto.</td><td class="center-text"><%= marcar(tlr, "TRL3") %></td></tr>
+            <tr><td>TRL 4: Validación laboratorio.</td><td class="center-text"><%= marcar(tlr, "TRL4") %></td></tr>
+            <tr><td>TRL 5: Validación entorno relevante.</td><td class="center-text"><%= marcar(tlr, "TRL5") %></td></tr>
+            <tr><td>TRL 6: Demostración tecnológica.</td><td class="center-text"><%= marcar(tlr, "TRL6") %></td></tr>
+            <tr><td>TRL 7 - 9: Prototipos y Productos finales.</td><td class="center-text"><%= (marcar(tlr, "TRL7").equals("X") || marcar(tlr, "TRL8").equals("X") || marcar(tlr, "TRL9").equals("X")) ? "X" : "" %></td></tr>
         </table>
         
         <% String slr = (String)proyecto.get("slr"); %>
         <table style="font-size: 9pt;">
             <tr class="bold"><td style="width: 90%">SRL: Niveles de Maduración Social</td><td>SRL</td></tr>
-            <tr><td>SRL 1: Identificación del problema.</td><td class="center-text"><%= marcar(slr, "SRL 1") %></td></tr>
-            <tr><td>SRL 2: Formulación de soluciones.</td><td class="center-text"><%= marcar(slr, "SRL 2") %></td></tr>
-            <tr><td>SRL 3: Pruebas en campo iniciales.</td><td class="center-text"><%= marcar(slr, "SRL 3") %></td></tr>
+            <tr><td>SRL 1: Identificación del problema.</td><td class="center-text"><%= marcar(slr, "SRL1") %></td></tr>
+            <tr><td>SRL 2: Formulación de soluciones.</td><td class="center-text"><%= marcar(slr, "SRL2") %></td></tr>
+            <tr><td>SRL 3: Pruebas en campo iniciales.</td><td class="center-text"><%= marcar(slr, "SRL3") %></td></tr>
+            <tr><td>SRL 4: Solución probada en contexto real.</td><td class="center-text"><%= marcar(slr, "SRL4") %></td></tr>
+            <tr><td>SRL 5: Solución validada por usuarios.</td><td class="center-text"><%= marcar(slr, "SRL5") %></td></tr>
+            <tr><td>SRL 6: Solución adoptada parcialmente.</td><td class="center-text"><%= marcar(slr, "SRL6") %></td></tr>
+            <tr><td>SRL 7: Solución adoptada completamente.</td><td class="center-text"><%= marcar(slr, "SRL7") %></td></tr>
         </table>
 
         <div class="header-title">VIII) Resumen ejecutivo:</div>
@@ -372,18 +387,52 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
         <div class="section-content"><%= escapeXml(proyecto.get("metodologia")) %></div>
 
         <div class="header-title">XVII) Cronograma de actividades:</div>
-        <table>
-            <tr class="bold"><th>Periodo</th><th>Actividad</th></tr>
-            <% if(cronograma.isEmpty()) { %>
-                <tr><td colspan="2" class="center-text">No hay actividades registradas.</td></tr>
-            <% } else { 
-                for(Map<String,Object> c : cronograma) { %>
-                <tr>
-                    <td><%= escapeXml(c.get("periodo")) %></td>
-                    <td><%= escapeXml(c.get("actividad")) %></td>
-                </tr>
-            <% } } %>
+        <% if(cronograma.isEmpty()) { %>
+            <p class="center-text">No hay actividades registradas.</p>
+        <% } else { 
+            // Agrupar actividades por semestre
+            Map<Integer, List<Map<String,Object>>> actividadesPorSemestre = new LinkedHashMap<>();
+            Map<Integer, String> descripcionesSemestre = new LinkedHashMap<>();
+            Map<Integer, String> metasSemestre = new LinkedHashMap<>();
+            
+            for(Map<String,Object> c : cronograma) {
+                Integer idSem = (Integer)c.get("id_semestre");
+                if(!actividadesPorSemestre.containsKey(idSem)) {
+                    actividadesPorSemestre.put(idSem, new ArrayList<>());
+                    descripcionesSemestre.put(idSem, (String)c.get("semestre"));
+                    metasSemestre.put(idSem, (String)c.get("meta"));
+                }
+                actividadesPorSemestre.get(idSem).add(c);
+            }
+            
+            int numSemestre = 1;
+            for(Map.Entry<Integer, List<Map<String,Object>>> entry : actividadesPorSemestre.entrySet()) {
+                Integer idSem = entry.getKey();
+                List<Map<String,Object>> actividades = entry.getValue();
+        %>
+        <table style="margin-bottom: 15px;">
+            <tr class="bold" style="background-color: #e0e0e0;">
+                <th colspan="2">SEMESTRE <%= numSemestre %>: <%= escapeXml(descripcionesSemestre.get(idSem)) %></th>
+            </tr>
+            <tr>
+                <td class="bold" style="width: 20%;">Meta del Semestre:</td>
+                <td><%= escapeXml(metasSemestre.get(idSem)) %></td>
+            </tr>
+            <tr class="bold" style="background-color: #f5f5f5;">
+                <td>Actividad</td>
+                <td>Entregables</td>
+            </tr>
+            <% for(Map<String,Object> act : actividades) { %>
+            <tr>
+                <td><%= escapeXml(act.get("actividad")) %></td>
+                <td><%= escapeXml(act.get("entregables")) %></td>
+            </tr>
+            <% } %>
         </table>
+        <%
+                numSemestre++;
+            }
+        } %>
 
         <div class="header-title">XVIII) Riesgos y estrategias:</div>
         <div class="section-content"><%= escapeXml(proyecto.get("riesgos")) %></div>
@@ -399,34 +448,84 @@ if (session.getAttribute("rol") == null || !"analista".equals(String.valueOf(ses
         <div class="page-break"></div>
 
         <div class="header-title">XXIV) Presupuesto financiero detallado:</div>
+        <% 
+           if(presupuesto.isEmpty()) { 
+        %>
+            <p class="center-text">Sin presupuesto detallado.</p>
+        <% } else { 
+            // Agrupar por partida para mostrar montos por semestre
+            Map<Integer, Map<String,Object>> partidasMap = new LinkedHashMap<>();
+            Set<Integer> semestresSet = new LinkedHashSet<>();
+            Map<Integer, String> semestresNombres = new LinkedHashMap<>();
+            
+            for(Map<String,Object> p : presupuesto) {
+                Integer idPartida = (Integer)p.get("id_partida");
+                Integer idSemestre = (Integer)p.get("id_semestre");
+                
+                semestresSet.add(idSemestre);
+                semestresNombres.put(idSemestre, (String)p.get("semestre"));
+                
+                if(!partidasMap.containsKey(idPartida)) {
+                    Map<String,Object> partidaInfo = new HashMap<>();
+                    partidaInfo.put("nombre", p.get("partida"));
+                    partidaInfo.put("justificacion", p.get("justificacion"));
+                    partidaInfo.put("montos", new HashMap<Integer, Double>());
+                    partidasMap.put(idPartida, partidaInfo);
+                }
+                ((Map<Integer,Double>)partidasMap.get(idPartida).get("montos")).put(idSemestre, (Double)p.get("monto"));
+            }
+            
+            List<Integer> semestresOrdenados = new ArrayList<>(semestresSet);
+            Collections.sort(semestresOrdenados);
+            int numSemestres = semestresOrdenados.size();
+        %>
         <table>
             <tr class="bold">
                 <th>Partida</th>
                 <th>Justificación</th>
-                <th>Monto</th>
+                <% for(Integer idSem : semestresOrdenados) { %>
+                <th style="width: 100px;">Semestre <%= semestresOrdenados.indexOf(idSem) + 1 %></th>
+                <% } %>
+                <th style="width: 100px;">Total</th>
             </tr>
             <% 
-               double total = 0;
-               if(presupuesto.isEmpty()) { 
+               double[] totalesSemestre = new double[numSemestres];
+               double granTotal = 0;
+               
+               for(Map.Entry<Integer, Map<String,Object>> entry : partidasMap.entrySet()) {
+                   Map<String,Object> partidaInfo = entry.getValue();
+                   Map<Integer,Double> montos = (Map<Integer,Double>)partidaInfo.get("montos");
+                   double totalPartida = 0;
             %>
-                <tr><td colspan="3" class="center-text">Sin presupuesto detallado.</td></tr>
-            <% } else { 
-                   for(Map<String,Object> p : presupuesto) { 
-                       double m = (Double)p.get("monto");
-                       total += m;
-            %>
-                <tr>
-                    <td><%= escapeXml(p.get("partida")) %></td>
-                    <td><%= escapeXml(p.get("justificacion")) %></td>
-                    <td class="right-text">$ <%= String.format("%,.2f", m) %></td>
-                </tr>
-                <% } %>
-                <tr class="bold" style="background-color: #ddd;">
-                    <td colspan="2" class="right-text">TOTAL SOLICITADO:</td>
-                    <td class="right-text">$ <%= String.format("%,.2f", total) %></td>
-                </tr>
+            <tr>
+                <td><%= escapeXml(partidaInfo.get("nombre")) %></td>
+                <td><%= escapeXml(partidaInfo.get("justificacion")) %></td>
+                <% 
+                   int idx = 0;
+                   for(Integer idSem : semestresOrdenados) { 
+                       Double monto = montos.get(idSem);
+                       double m = (monto != null) ? monto : 0;
+                       totalPartida += m;
+                       totalesSemestre[idx] += m;
+                %>
+                <td class="right-text">$ <%= String.format("%,.2f", m) %></td>
+                <% 
+                       idx++;
+                   } 
+                   granTotal += totalPartida;
+                %>
+                <td class="right-text bold">$ <%= String.format("%,.2f", totalPartida) %></td>
+            </tr>
             <% } %>
+            <tr class="bold" style="background-color: #ddd;">
+                <td colspan="2" class="right-text">SUBTOTAL POR SEMESTRE:</td>
+                <% for(int i = 0; i < numSemestres; i++) { %>
+                <td class="right-text">$ <%= String.format("%,.2f", totalesSemestre[i]) %></td>
+                <% } %>
+                <td class="right-text">$ <%= String.format("%,.2f", granTotal) %></td>
+            </tr>
         </table>
+        <% } %>
 
     </div>
 

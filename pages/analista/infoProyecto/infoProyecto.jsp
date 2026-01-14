@@ -202,7 +202,7 @@
                 }
                             
                 // --- 6. CRONOGRAMA ---
-                String sqlCron = "SELECT s.descripcion_semestre, a.nombre_actividad, a.entregables " +
+                String sqlCron = "SELECT s.descripcion_semestre, a.nombre_actividad, a.entregables, s.meta_semestre " +
                                  "FROM Cronograma_Actividades ca " +
                                  "JOIN actividades a ON ca.id_actividad = a.id_actividad " +
                                  "JOIN semestres s ON ca.id_semestre = s.id_semestre " +
@@ -216,6 +216,7 @@
                             m.put("semestre", rs.getString("descripcion_semestre"));
                             m.put("actividad", rs.getString("nombre_actividad"));
                             m.put("entregable", rs.getString("entregables"));
+                            m.put("meta", rs.getString("meta_semestre"));
                             cronograma.add(m);
                         }
                     }
@@ -1326,7 +1327,8 @@
               <table>
                 <thead>
                   <tr>
-                    <th class="text-left">Periodo</th>
+                    <th class="text-left">Descripcion del semestre</th>
+                    <th class ="text-left"> Meta del semestre</th>
                     <th class="text-left">Actividad</th>
                     <th class="text-left">Entregable</th>
                   </tr>
@@ -1335,10 +1337,11 @@
                   <% for(Map<String,Object> c : cronograma) { %>
                   <tr>
                     <td>
-                      <span class="badge badge-info">
-                        <i class="fas fa-clock mr-2"></i> <%= escapeXml((String)c.get("semestre")) %>
+                      <span class="flex items-center">
+                        <i class="mr-2"></i> <%= escapeXml((String)c.get("semestre")) %>
                       </span>
                     </td>
+                    <td class="font-medium"><%= escapeXml((String)c.get("meta")) %></td>
                     <td class="font-medium"><%= escapeXml((String)c.get("actividad")) %></td>
                     <td>
                       <div class="flex items-center gap-2">
@@ -1353,7 +1356,6 @@
             </div>
           <% } %>
         </div>
-
       </div>
 
       <!-- Barra lateral -->
