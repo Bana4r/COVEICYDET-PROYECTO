@@ -2,6 +2,8 @@
 <%@ page import="java.sql.*" %>
 <%@ page import="java.util.*" %>
 <%@ page import="java.text.SimpleDateFormat" %>
+<%@ page import="java.security.SecureRandom" %>
+<%@ page import="java.math.BigInteger" %>
 
 <%-- VALIDACIÓN DE SESIÓN --%>
 <% 
@@ -9,7 +11,15 @@
         String n=request.getRequestURI()+(request.getQueryString()!=null?("?"+request.getQueryString()):"");
         response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+java.net.URLEncoder.encode(n,"UTF-8")); 
         return; 
-    } 
+    }
+    
+    // Generar token CSRF para proteger las acciones de cambio de estado
+    String csrfToken = (String) session.getAttribute("csrf_token");
+    if (csrfToken == null) {
+        SecureRandom random = new SecureRandom();
+        csrfToken = new BigInteger(130, random).toString(32);
+        session.setAttribute("csrf_token", csrfToken);
+    }
 %>
 
 <%@ include file="/WEB-INF/conexion.jsp"%>
@@ -118,7 +128,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <title>COVEICYDET - Usuarios Responsables</title>
+    
+    <!-- Token CSRF para peticiones seguras -->
+    <meta name="csrf-token" content="<%= csrfToken %>">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -493,21 +507,21 @@
                                             </button>
                                             
                                             <% if (isActivo) { %>
-                                                <a href="cambiar_estado.jsp?id=<%= id %>&estado=1" onclick="return confirm('¿Estás seguro de desactivar a este usuario? No podrá iniciar sesión.');"
+                                                <button type="button" onclick="cambiarEstadoUsuario(<%= id %>, 1, '¿Estás seguro de desactivar a este usuario? No podrá iniciar sesión.', this)"
                                                    class="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
                                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
                                                     </svg>
                                                     Desactivar Usuario
-                                                </a>
+                                                </button>
                                             <% } else { %>
-                                                <a href="cambiar_estado.jsp?id=<%= id %>&estado=2" onclick="return confirm('¿Estás seguro de reactivar a este usuario?');"
+                                                <button type="button" onclick="cambiarEstadoUsuario(<%= id %>, 2, '¿Estás seguro de reactivar a este usuario?', this)"
                                                    class="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
                                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                                     </svg>
                                                     Activar Usuario
-                                                </a>
+                                                </button>
                                             <% } %>
                                             
                                             <% if (totalProyectosUsuario > 0) { %>
@@ -648,6 +662,141 @@
                 });
             });
         });
+        
+        /**
+         * Función para cambiar el estado de un usuario de forma segura
+         * Usa AJAX con POST y token CSRF para mayor seguridad
+         * @param {number} idUsuario - ID del usuario a modificar
+         * @param {number} nuevoEstado - Nuevo estado (1=inactivo, 2=activo)
+         * @param {string} mensajeConfirmacion - Mensaje a mostrar en el confirm
+         * @param {HTMLElement} boton - Elemento del botón clickeado
+         */
+        function cambiarEstadoUsuario(idUsuario, nuevoEstado, mensajeConfirmacion, boton) {
+            // Confirmar acción con el usuario
+            if (!confirm(mensajeConfirmacion)) {
+                return;
+            }
+            
+            // Obtener el token CSRF del meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Deshabilitar el botón mientras se procesa
+            const textoOriginal = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = `
+                <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Procesando...
+            `;
+            
+            // Realizar la petición POST con jQuery
+            $.ajax({
+                url: 'cambiar_estado.jsp',
+                type: 'POST',
+                data: {
+                    id: idUsuario,
+                    estado: nuevoEstado,
+                    csrf_token: csrfToken
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        // Mostrar mensaje de éxito
+                        mostrarNotificacion(response.message, 'success');
+                        // Recargar la página después de un breve delay para ver los cambios
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        mostrarNotificacion(response.error || 'Error desconocido', 'error');
+                        // Restaurar el botón
+                        boton.disabled = false;
+                        boton.innerHTML = textoOriginal;
+                    }
+                },
+                error: function(xhr, status, error) {
+                    let mensajeError = 'Error al procesar la solicitud';
+                    try {
+                        const respuesta = JSON.parse(xhr.responseText);
+                        if (respuesta.error) {
+                            mensajeError = respuesta.error;
+                        }
+                    } catch (e) {
+                        // Si no es JSON, usar mensaje genérico basado en código HTTP
+                        if (xhr.status === 401) {
+                            mensajeError = 'Sesión expirada. Por favor inicie sesión nuevamente.';
+                            setTimeout(function() {
+                                location.href = '<%= request.getContextPath() %>/pages/login/login.jsp';
+                            }, 2000);
+                        } else if (xhr.status === 403) {
+                            mensajeError = 'No tiene permisos para realizar esta acción.';
+                        } else if (xhr.status === 405) {
+                            mensajeError = 'Método no permitido.';
+                        }
+                    }
+                    mostrarNotificacion(mensajeError, 'error');
+                    // Restaurar el botón
+                    boton.disabled = false;
+                    boton.innerHTML = textoOriginal;
+                }
+            });
+        }
+        
+        /**
+         * Muestra una notificación temporal en la pantalla
+         * @param {string} mensaje - Mensaje a mostrar
+         * @param {string} tipo - 'success' o 'error'
+         */
+        function mostrarNotificacion(mensaje, tipo) {
+            // Eliminar notificaciones previas
+            const notificacionesExistentes = document.querySelectorAll('.notificacion-toast');
+            notificacionesExistentes.forEach(n => n.remove());
+            
+            // Crear nueva notificación
+            const notificacion = document.createElement('div');
+            notificacion.className = `notificacion-toast fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
+            
+            if (tipo === 'success') {
+                notificacion.classList.add('bg-green-500', 'text-white');
+                notificacion.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span>${mensaje}</span>
+                    </div>
+                `;
+            } else {
+                notificacion.classList.add('bg-red-500', 'text-white');
+                notificacion.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>${mensaje}</span>
+                    </div>
+                `;
+            }
+            
+            document.body.appendChild(notificacion);
+            
+            // Animar entrada
+            setTimeout(() => {
+                notificacion.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Remover después de 5 segundos
+            setTimeout(() => {
+                notificacion.classList.add('translate-x-full');
+                setTimeout(() => {
+                    notificacion.remove();
+                }, 300);
+            }, 5000);
+        }
     </script>
 </body>
 </html>
+
+<!-- leccion aprendida: usar POST para cambios de estado y validar roles en el backend -->
