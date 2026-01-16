@@ -3,6 +3,8 @@
 <%@ page import="java.security.MessageDigest" %>
 <%@ page import="java.nio.charset.StandardCharsets" %>
 
+<%@ include file="/WEB-INF/conexion.jsp" %>
+
 <%!
     // MISMA LÓGICA DE HASH QUE EN EL REGISTRO
     private static final String APP_SALT = "C0v31cYd3T_Pr0y3ct0_2025_#Secreto!";
@@ -30,14 +32,9 @@
     String password = request.getParameter("password");
 
     if (token != null && password != null) {
-        Connection conn = null;
         PreparedStatement ps = null;
         
         try {
-            Class.forName("org.postgresql.Driver");
-            String dbURL = "jdbc:postgresql://localhost:5432/proyectos";
-            conn = DriverManager.getConnection(dbURL, "dbusr25", "mxToro24000Chocolate");
-
             // Hashear nueva contraseña
             String passwordHashed = hashPassword(password);
 
@@ -50,14 +47,16 @@
             int filas = ps.executeUpdate();
             
             if (filas > 0) {
-                response.sendRedirect(request.getContextPath() + "/pages/login/login.jsp?msg=password_actualizado");
+                // Contraseña actualizada exitosamente
+                session.setAttribute("password_msg", "password_actualizado");
+                response.sendRedirect(request.getContextPath() + "/recuperarContrasena/actualizado/");
             } else {
-                response.sendRedirect(request.getContextPath() + "/pages/login/login.jsp?error=token_invalido_pass");
+                response.sendRedirect(request.getContextPath() + "/?error=token_invalido_pass");
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect(request.getContextPath() + "/pages/login/login.jsp?error=bd_error");
+            response.sendRedirect(request.getContextPath() + "/?error=bd_error");
         } finally {
             if(ps != null) try{ps.close();}catch(Exception e){}
             if(conn != null) try{conn.close();}catch(Exception e){}

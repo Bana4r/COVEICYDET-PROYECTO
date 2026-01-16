@@ -1,19 +1,17 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.sql.*" %>
+
+<%@ include file="../../WEB-INF/conexion.jsp" %>
+
 <%
     String token = request.getParameter("t");
     boolean tokenValido = false;
     
     // Validar token contra BD antes de mostrar nada
     if (token != null && !token.isEmpty()) {
-        Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            Class.forName("org.postgresql.Driver");
-            String dbURL = "jdbc:postgresql://localhost:5432/proyectos";
-            conn = DriverManager.getConnection(dbURL, "dbusr25", "mxToro24000Chocolate");
-            
             String sql = "SELECT id_usuario FROM usuarios WHERE token_cambiocontrasena = ?";
             ps = conn.prepareStatement(sql);
             ps.setString(1, token);
@@ -32,7 +30,7 @@
     }
 
     if (!tokenValido) {
-        response.sendRedirect(request.getContextPath() + "/pages/login/login.jsp?error=token_invalido_pass");
+        response.sendRedirect(request.getContextPath() + "/?error=token_invalido_pass");
         return;
     }
 %>
