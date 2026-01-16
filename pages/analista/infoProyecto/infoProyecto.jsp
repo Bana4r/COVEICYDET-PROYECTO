@@ -1580,7 +1580,8 @@
     link.click();
     document.body.removeChild(link);
     
-    mostrarNotificacion(`Documento "${nombre}" descargado exitosamente`, 'success');
+    //mostrarNotificacion(`Documento "${nombre}" descargado exitosamente`, 'success');
+    mostrarNotificacion(`Descargando...`, 'info');
   }
   
   function descargarPDFCompleto() {
