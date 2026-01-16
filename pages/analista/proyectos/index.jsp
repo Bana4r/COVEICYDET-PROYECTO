@@ -396,11 +396,17 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                     <i class="fas fa-list mr-2 text-[#7A1737]"></i> 
                     Proyectos Encontrados (<span id="resultados-count">0</span>)
                 </h2>
-                <div class="text-sm text-gray-500">
-                    <button onclick="toggleVista()" class="flex items-center space-x-1 text-[#7A1737] hover:text-[#A8253C]">
-                        <i class="fas fa-th" id="vista-icon"></i>
-                        <span id="vista-text">Vista cuadrícula</span>
-                    </button>
+                <div class="flex items-center space-x-4">
+                    <a href="archivoXls.jsp" class="inline-flex items-center bg-[#B28854] hover:bg-[#9A7148] text-white px-4 py-2 rounded-lg font-medium transition duration-200">
+                        <i class="fas fa-file-excel mr-2"></i>
+                        Descargar Excel
+                    </a>
+                    <div class="text-sm text-gray-500">
+                        <button onclick="toggleVista()" class="flex items-center space-x-1 text-[#7A1737] hover:text-[#A8253C]">
+                            <i class="fas fa-th" id="vista-icon"></i>
+                            <span id="vista-text">Vista cuadrícula</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             
