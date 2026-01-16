@@ -4,18 +4,16 @@
 <%@ page import="java.text.SimpleDateFormat" %>
 <%@ page import="java.util.Properties" %>
 <% if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) { String n=request.getRequestURI()+(request.getQueryString()!=null?("?"+request.getQueryString()):""); response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+java.net.URLEncoder.encode(n,"UTF-8")); return; } %>
+
+<%@ include file="../../../WEB-INF/conexion.jsp" %>
+
 <%!
-    // Configuración de la base de datos
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/proyectos?useUnicode=true&characterEncoding=UTF-8";
-    private static final String DB_USER = "dbusr25";
-    private static final String DB_PASSWORD = "mxToro24000Chocolate";
-    
     /**
      * Mapea los estados de la BD a los códigos numéricos del frontend
      */
     private String mapearEstadoBD(String estadoBD) {
         if (estadoBD == null) return "1";
-        
+
         switch (estadoBD.toLowerCase()) {
             case "borrador": return "1";
             case "enviado": return "2";
@@ -39,48 +37,33 @@
             default: return "1";
         }
     }
-    
+
     /**
-     * Mapa de estados para el frontend
+     * Obtiene el mapa de estados desde la base de datos
      */
-    private Map<String, String> obtenerMapaEstados() {
+    private Map<String, String> obtenerMapaEstados(Connection conn) throws SQLException {
         Map<String, String> estados = new HashMap<>();
-        estados.put("1", "Iniciado");
-        estados.put("2", "Enviado");
-        estados.put("3", "En validación");
-        estados.put("4", "Validado");
-        estados.put("5", "En evaluación externa");
-        estados.put("6", "En evaluación interna");
-        estados.put("7", "Aceptado");
-        estados.put("-1", "Rechazado");
-        estados.put("8", "En elaboración de Convenio de Asignación de Recursos");
-        estados.put("9", "En proceso de facturación");
-        estados.put("10", "En proceso de ministración de recursos");
-        estados.put("11", "Recalendarización");
-        estados.put("12", "En seguimiento: Alta de estudiantes, etc");
-        estados.put("13.1", "Entregó Reporte semestral - por revisar");
-        estados.put("13.2", "Entregó Reporte semestral – completo");
-        estados.put("13.3", "Entregó Reporte semestral - incompleto");
-        estados.put("14", "Entregó Reporte Final");
-        estados.put("14.1", "Entregó Reporte Final - completo");
-        estados.put("14.2", "Entregó Reporte Final – con observaciones");
-        estados.put("14.3", "Entregó Reporte Final – fuera de tiempo");
-        estados.put("15", "En auditoría de despacho externo");
-        estados.put("15.1", "En auditoría de despacho externo – aprobado");
-        estados.put("15.2", "En auditoría de despacho externo – con observaciones");
-        estados.put("16", "En Comité Técnico de Evaluación");
-        estados.put("18", "En elaboración de acta conclusión");
-        estados.put("19", "Finalizado");
-        
+
+        String sql = "SELECT id_estado, nombre_estado FROM estado_proyecto ORDER BY id_estado";
+        try (PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                String idEstado = rs.getString("id_estado");
+                String nombreEstado = rs.getString("nombre_estado");
+                estados.put(idEstado, nombreEstado);
+            }
+        }
+
         return estados;
     }
-    
+
     /**
      * Obtiene la clase CSS para el estado
      */
     private String obtenerClaseEstado(String estado) {
         if (estado == null) return "bg-gray-100 text-gray-800";
-        
+
         switch (estado) {
             case "1":
             case "7":
@@ -105,71 +88,79 @@
     // Obtener el ID del usuario de la sesión
     Integer userId = (Integer) session.getAttribute("id_usuario");
     
-    // Lógica del servlet movida al JSP
-    List<Map<String, Object>> proyectos = new ArrayList<>();
+    // Estados posibles - deben obtenerse de la base de datos
+    Map<String, String> estados = new HashMap<>();
+    boolean estadosCargados = false;
     boolean conexionExitosa = false;
     String mensajeError = null;
-    
+
     // Verificar que el usuario tenga ID en la sesión
     if (userId == null) {
         mensajeError = "Sesión inválida. Por favor, inicie sesión nuevamente.";
     } else {
-        try {
-            // Cargar el driver de PostgreSQL
-            Class.forName("org.postgresql.Driver");
-            
-            // Establecer propiedades de conexión para UTF-8
-            Properties props = new Properties();
-            props.setProperty("user", DB_USER);
-            props.setProperty("password", DB_PASSWORD);
-            props.setProperty("useUnicode", "true");
-            props.setProperty("characterEncoding", "UTF-8");
-            
-            // Establecer conexión
-            try (Connection conn = DriverManager.getConnection(DB_URL, props)) {
-                conexionExitosa = true;
-                
-                // Consulta SQL para obtener proyectos del usuario logueado
+        if (conn != null) {
+            conexionExitosa = true;
+            try {
+                // Primero obtener los estados desde la base de datos
+                estados = obtenerMapaEstados(conn);
+                estadosCargados = true;
+
+                // Luego obtener los proyectos
+                // Consulta SQL para obtener proyectos del usuario logueado con sus estados
                 String sql = "SELECT " +
                            "p.id_proyecto, " +
                            "p.titulo, " +
-                           "p.fecha_creacion " +
+                           "p.fecha_creacion, " +
+                           "p.estado_proyecto AS estado_original, " +
+                           "COALESCE(ep.id_estado::TEXT, p.estado_proyecto) AS estado_codigo, " +
+                           "COALESCE(ep.nombre_estado, p.estado_proyecto) AS estado_nombre " +
                            "FROM proyectos p " +
                            "INNER JOIN proyecto_usuarios pu ON p.id_proyecto = pu.id_proyecto " +
+                           "LEFT JOIN estado_proyecto ep ON LOWER(TRIM(p.estado_proyecto)) = LOWER(TRIM(ep.nombre_estado)) OR p.estado_proyecto = CAST(ep.id_estado AS TEXT) " +
                            "WHERE pu.id_usuario = ? " +
                            "ORDER BY p.fecha_creacion DESC";
-                
+
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setInt(1, userId);
                     try (ResultSet rs = stmt.executeQuery()) {
-                        
+                        List<Map<String, Object>> proyectos = new ArrayList<>();
+
                         while (rs.next()) {
                             Map<String, Object> proyecto = new HashMap<>();
                             proyecto.put("id", rs.getString("id_proyecto"));
                             proyecto.put("nombre", rs.getString("titulo"));
-                            proyecto.put("estado", "1"); // Estado por defecto: Iniciado
+                            proyecto.put("estado_original", rs.getString("estado_original")); // Estado original desde la BD
+                            proyecto.put("estado_codigo", rs.getString("estado_codigo")); // Código del estado
+                            proyecto.put("estado_nombre", rs.getString("estado_nombre")); // Nombre del estado
                             proyecto.put("fechaCreacion", rs.getTimestamp("fecha_creacion"));
-                            
+
                             proyectos.add(proyecto);
                         }
+
+                        // Asignar la lista de proyectos al alcance adecuado
+                        pageContext.setAttribute("proyectos", proyectos);
                     }
                 }
+            } catch (SQLException e) {
+                System.err.println("Error de base de datos: " + e.getMessage());
+                e.printStackTrace();
+                mensajeError = "Error de conexión a la base de datos: " + e.getMessage();
+            } finally {
+                // Cerrar la conexión aquí ya que no se usará más en esta página
+                if (conn != null) {
+                    try { conn.close(); } catch (SQLException e) { /* Ignored */ }
+                }
             }
-            
-        } catch (ClassNotFoundException e) {
-            System.err.println("Error: No se encontró el driver de PostgreSQL");
-            e.printStackTrace();
-            mensajeError = "Driver de base de datos no encontrado.";
-            
-        } catch (SQLException e) {
-            System.err.println("Error de base de datos: " + e.getMessage());
-            e.printStackTrace();
-            mensajeError = "Error de conexión a la base de datos: " + e.getMessage();
+        } else {
+            mensajeError = dbError;
         }
     }
 
-    // Estados posibles
-    Map<String, String> estados = obtenerMapaEstados();
+    // Obtener la lista de proyectos del contexto de página
+    List<Map<String, Object>> proyectos = (List<Map<String, Object>>) pageContext.getAttribute("proyectos");
+    if (proyectos == null) {
+        proyectos = new ArrayList<>();
+    }
     SimpleDateFormat formatoFecha = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 %>
 
@@ -192,29 +183,61 @@
                     <%= mensajeError %>
                 </div>
             <% } %>
-            
-            <% if (proyectos.isEmpty() && conexionExitosa && userId != null) { %>
+
+            <% if (proyectos.isEmpty() && conexionExitosa && userId != null && estadosCargados) { %>
                 <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
                     No tienes proyectos registrados.
                 </div>
             <% } %>
-            
+
             <!-- Mostrar total de proyectos -->
-            <% if (proyectos.size() > 0) { %>
+            <% if (proyectos.size() > 0 && estadosCargados) { %>
                 <p class="text-gray-600 mb-6">Total de proyectos: <%= proyectos.size() %></p>
             <% } %>
-            
+
+            <% if (!estadosCargados && mensajeError == null) { %>
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+                    Ha ocurrido un error inesperado al cargar los estados de los proyectos.
+                </div>
+            <% } else { %>
             <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <% 
+                <%
                 for (Map<String, Object> proyecto : proyectos) {
                     String id = (String) proyecto.get("id");
                     String nombre = (String) proyecto.get("nombre");
-                    String estado = (String) proyecto.get("estado");
-        
-                    String estadoTexto = estados.get(estado);
-                    if (estadoTexto == null) estadoTexto = "Estado desconocido";
-        
-                    String claseEstado = obtenerClaseEstado(estado);
+                    String estadoOriginal = (String) proyecto.get("estado_original");
+                    String estadoCodigo = (String) proyecto.get("estado_codigo");
+                    String estadoNombre = (String) proyecto.get("estado_nombre");
+
+                    String estadoTexto;
+
+                    // Prioridad 1: Si tenemos un nombre de estado desde la tabla estado_proyecto (y es diferente al original), usarlo
+                    if (estadoNombre != null && !estadoNombre.trim().isEmpty() &&
+                        !estadoNombre.equals(estadoOriginal)) {
+                        estadoTexto = estadoNombre;
+                    } else if (estadoNombre != null && !estadoNombre.trim().isEmpty() &&
+                               estadoNombre.equals(estadoOriginal)) {
+                        // Si estadoNombre y estadoOriginal son iguales, significa que no hubo coincidencia en la tabla estado_proyecto
+                        // En este caso, usar la función de mapeo para convertir el estado original a su equivalente mostrable
+                        String codigoMapeado = mapearEstadoBD(estadoOriginal);
+                        estadoTexto = estados.get(codigoMapeado);
+
+                        // Si aún no se encuentra, usar el estado original
+                        if (estadoTexto == null) {
+                            estadoTexto = estadoOriginal != null ? estadoOriginal : "Estado desconocido";
+                        }
+                    } else {
+                        // Si no hay estadoNombre, usar la función de mapeo
+                        String codigoMapeado = mapearEstadoBD(estadoOriginal);
+                        estadoTexto = estados.get(codigoMapeado);
+
+                        // Si no se encontró en el mapa de estados de la DB, usar el nombre del estado original
+                        if (estadoTexto == null) {
+                            estadoTexto = estadoOriginal != null ? estadoOriginal : "Estado desconocido";
+                        }
+                    }
+
+                    String claseEstado = obtenerClaseEstado(estadoCodigo);
                 %>
                     <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                         <h2 class="text-xl font-semibold text-gray-800 mb-2">
@@ -227,7 +250,7 @@
                             <span class="px-3 py-1 rounded-full text-sm <%= claseEstado %>">
                                 <%= estadoTexto %>
                             </span>
-                            <a href="/proyectos/pages/responsableDeproyecto/infoProyecto/infoProyecto.jsp?id=<%= id %>" 
+                            <a href="/proyectos/pages/responsableDeproyecto/infoProyecto/infoProyecto.jsp?id=<%= id %>"
                                class="text-blue-600 hover:text-blue-800 font-medium">
                                 Ver detalles
                             </a>
@@ -235,9 +258,10 @@
                     </div>
                 <% } %>
             </div>
-            
+            <% } %>
+
             <!-- Mensaje cuando no hay proyectos -->
-            <% if (proyectos.isEmpty() && mensajeError == null && userId != null) { %>
+            <% if (proyectos.isEmpty() && mensajeError == null && userId != null && estadosCargados) { %>
                 <div class="text-center py-12">
                     <p class="text-gray-500 text-lg">No tienes proyectos para mostrar.</p>
                 </div>
