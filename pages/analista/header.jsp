@@ -29,7 +29,7 @@
                 <% if (!primerNombre.isEmpty()) { %>
                     <p class="text-gray-300 text-sm flex items-center gap-2">
                         <span class="w-1.5 h-1.5 bg-green-400 rounded-full shadow-[0_0_5px_rgba(74,222,128,0.8)]"></span>
-                        Bienvenido, <span class="font-bold text-white"><%= primerNombre %></span>
+                        Hola, <span class="font-bold text-white"><%= primerNombre %></span>
                     </p>
                 <% } %>
             </div>

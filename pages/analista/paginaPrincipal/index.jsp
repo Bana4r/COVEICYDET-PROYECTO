@@ -103,7 +103,7 @@
       <div class="bg-white rounded-xl shadow-lg p-8 mb-12">
         <h2 class="text-2xl font-bold mb-6 text-gray-800">Acciones Rápidas</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <a href="/proyectos/pages/analista/proyectos/proyectos.jsp" class="bg-gradient-to-r from-[#7A1737] to-[#A8253C] text-white p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 flex items-center">
+          <a href="/proyectos/pages/analista/proyectos/" class="bg-gradient-to-r from-[#7A1737] to-[#A8253C] text-white p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 flex items-center">
             <svg class="w-8 h-8 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
             </svg>
@@ -113,7 +113,7 @@
             </div>
           </a>
           
-          <a href="/proyectos/pages/analista/usuarios/usuarios.jsp" class="bg-gradient-to-r from-[#B28854] to-[#7A1737] text-white p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 flex items-center">
+          <a href="/proyectos/pages/analista/usuarios/" class="bg-gradient-to-r from-[#B28854] to-[#7A1737] text-white p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 flex items-center">
             <svg class="w-8 h-8 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"></path>
             </svg>
@@ -126,7 +126,7 @@
       </div>
       
       <!-- Estadísticas rápidas -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-4xl mx-auto">
+      <!--<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-4xl mx-auto">
         <div class="bg-white rounded-xl p-6 shadow-lg text-center card-hover">
           <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,12 +158,12 @@
           <h3 class="text-xl font-semibold mb-2">En Progreso</h3>
           <p class="text-3xl font-bold text-gray-800"><%= proyectosEnProgreso %></p>
           <p class="text-sm text-gray-500 mt-1">En revisión/desarrollo</p>
-        </div>
+        </div>-->
         
         
       </div>
 
-      <!-- Gestión de notificaciones -->
+      <!-- Gestión de notificaciones
       <div class="bg-white rounded-xl shadow-lg p-8 mb-12">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold text-gray-800">Gestión de Notificaciones</h2>
@@ -174,16 +174,16 @@
             </svg>
             Publicar Notificación
           </button>
-        </div>
+        </div> -->
         
-        <!-- Lista de notificaciones existentes (placeholder) -->
+        <!-- Lista de notificaciones existentes (placeholder)
         <div class="space-y-4">
           <div class="bg-gray-50 border-l-4 border-gray-400 text-gray-700 p-4 rounded-r-lg" role="alert">
             <p class="font-medium text-gray-500">No hay notificaciones publicadas</p>
             <p class="text-sm text-gray-400 mt-1">Las notificaciones que publiques aparecerán aquí para todos los usuarios del sistema.</p>
           </div>
         </div>
-      </div>
+      </div>-->
 
 
 
