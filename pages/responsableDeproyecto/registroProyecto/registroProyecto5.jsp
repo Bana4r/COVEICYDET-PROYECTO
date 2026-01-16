@@ -193,7 +193,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Comprobante de adscripción
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración
                                         </td>
                                         <td>
                                             <input type="hidden" id="org_comprobante_1_path" name="org_comprobante_1_path">
@@ -201,7 +201,7 @@
                                             <div id="org_comprobante_1_uploader">
                                                 <input type="file" id="org_comprobante_1" name="org_comprobante_1" accept=".pdf" 
                                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
-                                                       title="Adjunte comprobante de adscripción">
+                                                       title="Adjunte carta de intención de colaboración">
                                             </div>
 
                                             <div id="org_comprobante_1_previewer" class="hidden items-center space-x-2 mt-1">
@@ -251,7 +251,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Comprobante de adscripción
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración
                                         </td>
                                         <td>
                                             <input type="hidden" id="org_comprobante_2_path" name="org_comprobante_2_path">
@@ -259,7 +259,7 @@
                                             <div id="org_comprobante_2_uploader">
                                                 <input type="file" id="org_comprobante_2" name="org_comprobante_2" accept=".pdf" 
                                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
-                                                       title="Adjunte comprobante de adscripción">
+                                                       title="Adjunte carta de intención de colaboración">
                                             </div>
 
                                             <div id="org_comprobante_2_previewer" class="hidden items-center space-x-2 mt-1">
@@ -309,7 +309,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Comprobante de adscripción
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración
                                         </td>
                                         <td>
                                             <input type="hidden" id="org_comprobante_3_path" name="org_comprobante_3_path">
@@ -317,7 +317,7 @@
                                             <div id="org_comprobante_3_uploader">
                                                 <input type="file" id="org_comprobante_3" name="org_comprobante_3" accept=".pdf" 
                                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
-                                                       title="Adjunte comprobante de adscripción">
+                                                       title="Adjunte carta de intención de colaboración">
                                             </div>
 
                                             <div id="org_comprobante_3_previewer" class="hidden items-center space-x-2 mt-1">
@@ -367,7 +367,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Comprobante de adscripción
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración
                                         </td>
                                         <td>
                                             <input type="hidden" id="org_comprobante_4_path" name="org_comprobante_4_path">
@@ -375,7 +375,7 @@
                                             <div id="org_comprobante_4_uploader">
                                                 <input type="file" id="org_comprobante_4" name="org_comprobante_4" accept=".pdf" 
                                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
-                                                       title="Adjunte comprobante de adscripción">
+                                                       title="Adjunte carta de intención de colaboración">
                                             </div>
 
                                             <div id="org_comprobante_4_previewer" class="hidden items-center space-x-2 mt-1">
@@ -425,7 +425,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Comprobante de adscripción
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración
                                         </td>
                                         <td>
                                             <input type="hidden" id="org_comprobante_5_path" name="org_comprobante_5_path">

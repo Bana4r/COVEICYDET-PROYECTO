@@ -221,7 +221,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración 
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte comprobante de adscripción 
                                         </td>
                                         <td>
                                             <input type="hidden" id="est_comprobante_1_path" name="est_comprobante_1_path">
@@ -296,7 +296,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración 
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte comprobante de adscripción
                                         </td>
                                         <td>
                                             <input type="hidden" id="est_comprobante_2_path" name="est_comprobante_2_path">
@@ -371,7 +371,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración 
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte comprobante de adscripción 
                                         </td>
                                         <td>
                                             <input type="hidden" id="est_comprobante_3_path" name="est_comprobante_3_path">
@@ -446,7 +446,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración 
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte comprobante de adscripción 
                                         </td>
                                         <td>
                                             <input type="hidden" id="est_comprobante_4_path" name="est_comprobante_4_path">
@@ -521,7 +521,7 @@
                                     </tr>
                                     <tr>
                                         <td style="background-color: #f8fafc; font-weight: 500;">
-                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte carta de intención de colaboración 
+                                            <i class="fas fa-file-pdf text-[#7A1737] mr-2"></i>Adjunte comprobante de adscripción 
                                         </td>
                                         <td>
                                             <input type="hidden" id="est_comprobante_5_path" name="est_comprobante_5_path">
