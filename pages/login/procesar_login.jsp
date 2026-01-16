@@ -2,15 +2,14 @@
 <%@ page import="java.sql.*" %>
 <%@ page import="java.util.*" %>
 
+<%@ include file="../../WEB-INF/conexion.jsp" %>
+
 <%!
-    // DATOS DE CONEXIÓN
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/proyectos";
-    private static final String DB_USER = "dbusr25";
-    private static final String DB_PASSWORD = "mxToro24000Chocolate";
+    // DATOS DE CONEXIÓN YA NO SON NECESARIOS AQUÍ PORQUE USAMOS CONEXION.JSP
     private static final String APP_SALT = "C0v31cYd3T_Pr0y3ct0_2025_#Secreto!";
 %>
 
-<%
+<% 
     String email = request.getParameter("email");
     String password = request.getParameter("password");
     String nextUrl = request.getParameter("next");
@@ -29,62 +28,62 @@
     if (email == null || password == null || email.isEmpty() || password.isEmpty()) {
         mensaje = "Por favor, complete todos los campos.";
     } else {
-        Connection conn = null;
+        // conn viene de conexion.jsp
         PreparedStatement stmt = null;
         ResultSet rs = null;
 
-        try {
-            Class.forName("org.postgresql.Driver");
-            conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        if (conn != null) {
+            try {
+                // Class.forName y DriverManager ya manejados en conexion.jsp
 
-            String passwordHasheada = hashPassword(password);
+                String passwordHasheada = hashPassword(password);
 
-            // --- CORRECCIÓN FINAL ---
-            // Eliminamos el JOIN a estado_usuario porque u.estado ya tiene el ID (1 o 2).
-            String sql = "SELECT u.id_usuario, u.nombre, u.primer_apellido, u.segundo_apellido, u.estado, t.tipo_usuario " +
-                         "FROM usuarios u " +
-                         "JOIN tipo_usuario t ON u.tipousuario = t.id_tipo_usuario " +
-                         "WHERE u.correo_electronico = ? AND u.contrasena = ?";
+                // --- CORRECCIÓN FINAL ---
+                // Eliminamos el JOIN a estado_usuario porque u.estado ya tiene el ID (1 o 2).
+                String sql = "SELECT u.id_usuario, u.nombre, u.primer_apellido, u.segundo_apellido, u.estado, t.tipo_usuario " +
+                             "FROM usuarios u " +
+                             "JOIN tipo_usuario t ON u.tipousuario = t.id_tipo_usuario " +
+                             "WHERE u.correo_electronico = ? AND u.contrasena = ?";
 
-            stmt = conn.prepareStatement(sql);
-            stmt.setString(1, cancelaInjeccion(email));
-            stmt.setString(2, passwordHasheada);
-            rs = stmt.executeQuery();
-            
-            if (rs.next()) {
-                // Leemos directamente el entero de la tabla usuarios
-                int estadoUsuario = rs.getInt("estado");
+                stmt = conn.prepareStatement(sql);
+                stmt.setString(1, cancelaInjeccion(email));
+                stmt.setString(2, passwordHasheada);
+                rs = stmt.executeQuery();
+                
+                if (rs.next()) {
+                    // Leemos directamente el entero de la tabla usuarios
+                    int estadoUsuario = rs.getInt("estado");
 
-                // VALIDACIÓN: 2 = Activo
-                if (estadoUsuario == 2) {
-                    loginExitoso = true;
-                    usuarioId = rs.getInt("id_usuario");
-                    nombreUsuario = rs.getString("nombre") + " " + 
-                                   rs.getString("primer_apellido") + " " + 
-                                   rs.getString("segundo_apellido");
-                    rol = rs.getString("tipo_usuario");
+                    // VALIDACIÓN: 2 = Activo
+                    if (estadoUsuario == 2) {
+                        loginExitoso = true;
+                        usuarioId = rs.getInt("id_usuario");
+                        nombreUsuario = rs.getString("nombre") + " " + 
+                                       rs.getString("primer_apellido") + " " + 
+                                       rs.getString("segundo_apellido");
+                        rol = rs.getString("tipo_usuario");
+                    } else {
+                        // Estado Inactivo (1 u otro)
+                        loginExitoso = false;
+                        mensaje = "Su usuario está inactivo. Debe validar su cuenta para continuar, en caso de no encontrar el correo de activación, revise su carpeta de spam o correo no deseado. si el correo ya fue validado y no puede ingresar, contacte al correo: marquez@coveicydet.gob.mx" ;
+                    }
                 } else {
-                    // Estado Inactivo (1 u otro)
-                    loginExitoso = false;
-                    mensaje = "Su usuario está inactivo. Debe validar su cuenta para continuar, en caso de no encontrar el correo de activación, revise su carpeta de spam o correo no deseado.";
+                    mensaje = "Credenciales incorrectas o usuario no registrado.";
                 }
-            } else {
-                mensaje = "Credenciales incorrectas o usuario no registrado.";
-            }
 
-        } catch (ClassNotFoundException e) {
-            mensaje = "Error interno: Driver no encontrado.";
-            e.printStackTrace();
-        } catch (SQLException e) {
-            mensaje = "Error SQL: " + e.getMessage(); 
-            e.printStackTrace();
-        } catch (Exception e) {
-            mensaje = "Error interno del servidor.";
-            e.printStackTrace();
-        } finally {
-            if (rs != null) try { rs.close(); } catch (SQLException e) {}
-            if (stmt != null) try { stmt.close(); } catch (SQLException e) {}
-            if (conn != null) try { conn.close(); } catch (SQLException e) {}
+            } catch (SQLException e) {
+                mensaje = "Error SQL: " + e.getMessage(); 
+                e.printStackTrace();
+            } catch (Exception e) {
+                mensaje = "Error interno del servidor.";
+                e.printStackTrace();
+            } finally {
+                if (rs != null) try { rs.close(); } catch (SQLException e) {}
+                if (stmt != null) try { stmt.close(); } catch (SQLException e) {}
+                // NO cerramos conn aquí
+            }
+        } else {
+             mensaje = "Error de conexión: " + dbError;
         }
     }
     
@@ -98,7 +97,7 @@
 
         // Token
         if (rememberMe != null && rememberMe.equals("on")) {
-            actualizarToken(usuarioId, request, response);
+            actualizarToken(usuarioId, conn, response);
             gestionarCookieEmail(email, true, request, response);
         } else {
             eliminarToken(response);
@@ -112,7 +111,7 @@
         } else {
             switch (rol) {
                 case "responsable": redirectUrl = request.getContextPath() + "/pages/responsableDeproyecto/paginaPrincipal/"; break;
-                case "analista": redirectUrl = request.getContextPath() + "/pages/analista/paginaPrincipal/main.jsp"; break;
+                case "analista": redirectUrl = request.getContextPath() + "/pages/analista/paginaPrincipal/"; break;
                 case "evaluador": redirectUrl = request.getContextPath() + "/pages/evaluador/main.jsp"; break;
                 default: redirectUrl = request.getContextPath() + "/index.jsp"; break;
             }
@@ -149,20 +148,18 @@
         return valor.replace("'","").replace("\"","").replace("DROP","").replace("DELETE","");
     }
 
-    public void actualizarToken(int usuarioId, HttpServletRequest request, HttpServletResponse response) {
+    public void actualizarToken(int usuarioId, Connection conn, HttpServletResponse response) {
+        if (conn == null) return;
         try {
-            Class.forName("org.postgresql.Driver");
-            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
-                String token = java.util.UUID.randomUUID().toString();
-                String sql = "UPDATE usuarios SET token_sesion = ? WHERE id_usuario = ?";
-                try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setString(1, token);
-                    ps.setInt(2, usuarioId);
-                    ps.executeUpdate();
-                }
-                Cookie c = new Cookie("auth_token", token);
-                c.setMaxAge(30 * 24 * 60 * 60); c.setPath("/"); response.addCookie(c);
+            String token = java.util.UUID.randomUUID().toString();
+            String sql = "UPDATE usuarios SET token_sesion = ? WHERE id_usuario = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, token);
+                ps.setInt(2, usuarioId);
+                ps.executeUpdate();
             }
+            Cookie c = new Cookie("auth_token", token);
+            c.setMaxAge(30 * 24 * 60 * 60); c.setPath("/"); response.addCookie(c);
         } catch (Exception e) { e.printStackTrace(); }
     }
 

@@ -1,5 +1,8 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.sql.*" %>
+
+<%@ include file="../../WEB-INF/conexion.jsp" %>
+
 <%
     String rolActual = (String) session.getAttribute("rol");
     Boolean autenticado = (Boolean) session.getAttribute("autenticado");
@@ -19,17 +22,15 @@
 
         if (tokenEncontrado != null) {
             // Validar Token contra la BD
-            try {
-                Class.forName("org.postgresql.Driver");
-                Connection conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/proyectos", "dbusr25", "mxToro24000Chocolate");
-                
-                String sql = "SELECT u.id_usuario, u.nombre, u.primer_apellido, u.segundo_apellido, u.estado, t.tipo_usuario " +
-                             "FROM usuarios u JOIN tipo_usuario t ON u.tipousuario = t.id_tipo_usuario " +
-                             "WHERE u.token_sesion = ?";
-                
-                PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setString(1, tokenEncontrado);
-                ResultSet rs = ps.executeQuery();
+            if (conn != null) {
+                try {
+                    String sql = "SELECT u.id_usuario, u.nombre, u.primer_apellido, u.segundo_apellido, u.estado, t.tipo_usuario " +
+                                 "FROM usuarios u JOIN tipo_usuario t ON u.tipousuario = t.id_tipo_usuario " +
+                                 "WHERE u.token_sesion = ?";
+
+                    PreparedStatement ps = conn.prepareStatement(sql);
+                    ps.setString(1, tokenEncontrado);
+                    ResultSet rs = ps.executeQuery();
                 
                 if (rs.next()) {
                     int estadoUsuario = rs.getInt("estado");
@@ -52,8 +53,9 @@
                     }
                 }
                 conn.close();
-            } catch (Exception e) {
-                e.printStackTrace();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -62,9 +64,9 @@
     if (autenticado != null && autenticado && rolActual != null) {
         String redirectUrl = "";
         switch (rolActual) {
-            case "responsable": redirectUrl = request.getContextPath() + "/pages/responsableDeproyecto/paginaPrincipal/main.jsp"; break;
-            case "analista": redirectUrl = request.getContextPath() + "/pages/analista/paginaPrincipal/main.jsp"; break;
-            case "evaluador": redirectUrl = request.getContextPath() + "/pages/evaluador/main.jsp"; break;
+            case "responsable": redirectUrl = request.getContextPath() + "/pages/responsableDeproyecto/paginaPrincipal/"; break;
+            case "analista": redirectUrl = request.getContextPath() + "/pages/analista/paginaPrincipal/"; break;
+            case "evaluador": redirectUrl = request.getContextPath() + "/pages/evaluador/"; break;
             default: redirectUrl = request.getContextPath() + "/index.jsp"; break;
         }
         response.sendRedirect(redirectUrl);
@@ -403,7 +405,7 @@
                         </div>
 
                         <div>
-                            <a href="/proyectos/pages/recuperarContrasena/formulario.jsp" class="font-medium text-[#A8253C] hover:text-[#7A1737] transition">¿Olvidaste tu contraseña?</a>
+                            <a href="/proyectos/pages/recuperarContrasena/" class="font-medium text-[#A8253C] hover:text-[#7A1737] transition">¿Olvidaste tu contraseña?</a>
                         </div>
                     </div>
 
