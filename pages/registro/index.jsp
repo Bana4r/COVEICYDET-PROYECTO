@@ -706,7 +706,7 @@
                                             <p class="mb-1 text-sm text-gray-500">
                                                 <span class="font-semibold">Haz clic para subir</span> o arrastra el archivo
                                             </p>
-                                            <p class="text-xs text-gray-500">PDF (máximo 5MB)</p>
+                                            <p class="text-xs text-gray-500">PDF (máximo 1.5 MB)</p>
                                         </div>
                                         <input type="file" 
                                             id="pdfVigencia" 
@@ -913,8 +913,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.value = '';
                 return;
             }
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Error: El archivo excede 5MB');
+            
+            // LÍMITE REDUCIDO: 1.5 MB (seguro para Tomcat por defecto)
+            // 1.5 MB original = ~2 MB en Base64 (dentro del límite de 2MB de Tomcat)
+            const maxSizeMB = 1.5;
+            const maxSizeBytes = maxSizeMB * 1024 * 1024;
+            
+            if (file.size > maxSizeBytes) {
+                alert('Error: El archivo excede ' + maxSizeMB + ' MB.\n\nPor favor, reduce el tamaño del PDF antes de subirlo.\n\nConsejo: Puedes usar herramientas como "Smallpdf" o "iLovePDF" para comprimir el archivo.');
                 input.value = '';
                 return;
             }

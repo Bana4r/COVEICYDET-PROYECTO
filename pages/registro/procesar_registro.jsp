@@ -6,8 +6,6 @@
 <%@ page import="java.security.MessageDigest" %>
 <%@ page import="java.nio.charset.StandardCharsets" %>
 <%@ page import="java.util.Base64" %>
-<%@ page import="java.util.Properties" %>
-<%@ page import="java.io.InputStream" %>
 
 <%!
     // --- LÓGICA DE SEGURIDAD ---
@@ -33,9 +31,11 @@
 
 <%
     request.setCharacterEncoding("UTF-8");
-    
-    // LOG: Inicio del proceso
     System.out.println(">>> Iniciando registro de usuario...");
+
+    // INCLUIR CONEXIÓN Y CORREO DESDE WEB-INF
+    %><%@ include file="/WEB-INF/conexion.jsp" %><%
+    %><%@ include file="/WEB-INF/correo.jsp" %><%
 
     String nombre = request.getParameter("nombreCompleto");
     String appPaterno = request.getParameter("primerApellido");
@@ -50,43 +50,28 @@
     String errorMsg = "";
     int idUsuarioGenerado = -1;
     
-    Connection conn = null;
     PreparedStatement ps = null;
 
     try {
-        Class.forName("org.postgresql.Driver");
-        String dbURL = "jdbc:postgresql://localhost:5432/proyectos";
-        String dbUser = "dbusr25";
-        String dbPass = "mxToro24000Chocolate";
-        
-        conn = DriverManager.getConnection(dbURL, dbUser, dbPass);
-
+        // ...existing code... (verificación de RFC)
         String sqlCheck = "SELECT id_usuario FROM usuarios WHERE rfc = ?";
         PreparedStatement psCheck = conn.prepareStatement(sqlCheck);
         psCheck.setString(1, rfc);
         ResultSet rsCheck = psCheck.executeQuery();
 
         if (rsCheck.next()) {
-            // El RFC ya existe
             rsCheck.close();
             psCheck.close();
             conn.close();
-            
-            // Redirigir al login con el mensaje específico
             response.sendRedirect(request.getContextPath() + "/pages/login/login.jsp?msg=rfc_registrado");
-            return; // Detener la ejecución del script aquí
+            return;
         }
         
-        // Cerrar recursos de la verificación antes de seguir
         rsCheck.close();
         psCheck.close();
-        // ---------------------------------------------
 
-        // PREPARAR QUERY: Agregamos el campo 'comprobantevigencia' aunque sea null al inicio
-        // Y muy importante: RETURN_GENERATED_KEYS para obtener el ID
+        // ...existing code... (INSERT de usuario)
         String sql = "INSERT INTO usuarios (nombre, primer_apellido, segundo_apellido, rfc, correo_electronico, contrasena, tipousuario, token_sesion, estado, token_activacion, comprobantevigencia) VALUES (?, ?, ?, ?, ?, ?, 2, ?, 1, ?, ?)";
-
-        // Usamos RETURN_GENERATED_KEYS
         ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
         
         ps.setString(1, nombre);
@@ -95,11 +80,10 @@
         ps.setString(4, rfc);
         ps.setString(5, email);
         ps.setString(6, passwordHashed); 
-        ps.setString(7, null); // token_sesion
-        ps.setString(8, token); // token_activacion
-        ps.setString(9, null); // comprobantevigencia
+        ps.setString(7, null);
+        ps.setString(8, token);
+        ps.setString(9, null);
 
-        
         int filas = ps.executeUpdate();
         if (filas > 0) {
             registroExitoso = true;
@@ -109,47 +93,31 @@
             }
             generatedKeys.close();
         }
-        
 
         String pdfBase64 = request.getParameter("pdfBase64");
-
         if (idUsuarioGenerado != -1 && pdfBase64 != null && !pdfBase64.isEmpty()) {
             try {
-                // Definir ruta: /uploads/{ID}/
                 String appPath = request.getServletContext().getRealPath("/");
                 String savePath = appPath + "uploads" + File.separator + idUsuarioGenerado;
-
-                // Crear carpetas
                 File fileDir = new File(savePath);
                 if (!fileDir.exists()) fileDir.mkdirs();
-
-                // Limpiar el string Base64 (quitar "data:application/pdf;base64,")
                 String base64Data = pdfBase64.substring(pdfBase64.indexOf(",") + 1);
                 byte[] fileBytes = Base64.getDecoder().decode(base64Data);
-
-                // Guardar archivo físico
                 String nombreArchivo = "vigencia.pdf";
                 File file = new File(savePath + File.separator + nombreArchivo);
                 FileOutputStream output = new FileOutputStream(file);
                 output.write(fileBytes);
                 output.close();
-
-                // 3. ACTUALIZAR LA BD CON LA RUTA
-                // Guardamos la ruta relativa para usarla fácil en HTML después
                 String rutaRelativa = "uploads/" + idUsuarioGenerado + "/" + nombreArchivo;
-
                 String sqlUpdate = "UPDATE usuarios SET comprobantevigencia = ? WHERE id_usuario = ?";
                 PreparedStatement psUpdate = conn.prepareStatement(sqlUpdate);
                 psUpdate.setString(1, rutaRelativa);
                 psUpdate.setInt(2, idUsuarioGenerado);
                 psUpdate.executeUpdate();
                 psUpdate.close();
-
                 System.out.println(">>> PDF guardado y ruta actualizada: " + rutaRelativa);
-
             } catch (Exception ex) {
                 System.out.println(">>> Error guardando PDF: " + ex.getMessage());
-                // Opcional: Manejar error (borrar usuario o dejar log)
             }
         }
     } catch (Exception e) {
@@ -163,20 +131,15 @@
 
     if (registroExitoso) {
         try {
-            // Construir URL del sistema
             String baseURL = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort() + request.getContextPath();
             String linkActivacion = baseURL + "/activar_cuenta.jsp?t=" + token;
 
-            System.out.println(">>> Link generado: " + linkActivacion);
-
-            // Preparar parámetros para la API de correo
             String asunto = URLEncoder.encode("Confirmación de Cuenta - COVEICYDET", "UTF-8");
-            
-            // IMPORTANTE: Si sigue fallando, prueba quitando las etiquetas HTML del mensaje temporalmente
             String mensajeCuerpo = "Hola " + nombre + ". Gracias por registrarte. Para activar tu cuenta, haz clic aqui: " + linkActivacion;
             String mensajeEncoded = URLEncoder.encode(mensajeCuerpo, "UTF-8");
 
-            String apiURL = "https://covecyt.gob.mx/libmail.php?DESTINATARIO=" + email + 
+            // USA mailApiUrl DEL INCLUDE
+            String apiURL = mailApiUrl + "?DESTINATARIO=" + email + 
                             "&ASUNTO=" + asunto + 
                             "&MENSAJE=" + mensajeEncoded;
 
@@ -184,21 +147,15 @@
 
             URL url = new URL(apiURL);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            
-            // CONFIGURACIÓN CRÍTICA PARA QUE FUNCIONE
             connection.setRequestMethod("GET");
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0"); // Simular navegador
-            connection.setConnectTimeout(10000); // 10 segundos timeout
-            connection.setReadTimeout(10000); // 10 segundos timeout
-            
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(10000);
             connection.connect();
             
-            // OBLIGATORIO: Leer la respuesta para que la petición salga realmente
             int responseCode = connection.getResponseCode();
-            
             System.out.println(">>> Respuesta API Correo (Código): " + responseCode);
 
-            // Leer contenido de respuesta (opcional pero bueno para debug)
             if (responseCode == 200) {
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String inputLine;
@@ -210,17 +167,14 @@
                 System.out.println(">>> Respuesta API Cuerpo: " + content.toString());
             }
 
-            // Redirigir al Login
             response.sendRedirect(request.getContextPath() + "/pages/login/login.jsp?msg=registro_ok");
 
         } catch (Exception e) {
             System.out.println(">>> ERROR ENVIANDO CORREO: " + e.getMessage());
             e.printStackTrace();
-            // Redirigir con error de correo pero usuario creado
             response.sendRedirect(request.getContextPath() + "/pages/login/login.jsp?error=fallo_correo");
         }
     } else {
-        // Error de BD
-        response.sendRedirect("registrarse.jsp?error=" + URLEncoder.encode(errorMsg, "UTF-8"));
+        response.sendRedirect("index.jsp?error=" + URLEncoder.encode(errorMsg, "UTF-8"));
     }
 %>
