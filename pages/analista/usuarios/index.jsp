@@ -524,7 +524,8 @@
                                                 </button>
                                             <% } %>
                                             
-                                            <% if (totalProyectosUsuario > 0) { %>
+                                            <!-- no quiero pensar en esto por ahora -->
+                                            <!--<% if (totalProyectosUsuario > 0) { %>
                                                 <a href="/proyectos/pages/analista/proyectos/" 
                                                    class="w-full bg-[#B28854] hover:bg-[#9A7148] text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
                                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -532,7 +533,7 @@
                                                     </svg>
                                                     Ver Proyectos
                                                 </a>
-                                            <% } %>
+                                            <% } %>-->
                                         </div>
                                     </div>
                                 </div>
