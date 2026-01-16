@@ -22,11 +22,16 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
         if (conn == null) {
             throw new Exception("No se pudo establecer conexión con la base de datos. " + dbError);
         }
-            // Consulta mejorada para traer más campos
+            // Consulta mejorada para traer más campos incluyendo el nombre del estado
+            // Usa CASE WHEN para manejar valores numéricos y texto en estado_proyecto
             String sql = "SELECT " +
                        "p.id_proyecto, " +
                        "p.titulo, " +
                        "p.estado_proyecto, " +
+                       "CASE " +
+                       "  WHEN p.estado_proyecto ~ '^[0-9]+$' THEN (SELECT nombre_estado FROM estado_proyecto WHERE id_estado = p.estado_proyecto::integer) " +
+                       "  ELSE p.estado_proyecto " +
+                       "END AS nombre_estado, " +
                        "p.fecha_creacion, " +
                        "p.institucion_proponente, " +
                        "p.area_conocimiento, " +
@@ -53,38 +58,32 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                         p.put("id", rs.getString("id_proyecto") != null ? rs.getString("id_proyecto") : "???"); // Formato ID visual
                         p.put("titulo", rs.getString("titulo"));
                         
-                        // Mapeo de estado para el frontend
-                        String estadoBD = rs.getString("estado_proyecto");
+                        // Obtener el nombre del estado desde el JOIN con estado_proyecto
+                        String nombreEstadoBD = rs.getString("nombre_estado");
                         String estadoFrontend = "Pendiente"; // Default
                         
-                        // Lógica de mapeo simplificada para la UI
-                        if (estadoBD != null) {
-                            String e = estadoBD.toLowerCase().trim();
+                        // Mapear el nombre del estado de la BD al frontend
+                        if (nombreEstadoBD != null && !nombreEstadoBD.isEmpty()) {
+                            String e = nombreEstadoBD.toLowerCase().trim();
                             
-                            // Finalizados (Separado de Aprobados)
-                            if (e.equals("finalizado") || e.equals("completado") || e.equals("19")) {
+                            if (e.contains("finalizado") || e.contains("completado")) {
                                 estadoFrontend = "Finalizado";
                             }
-                            // Aprobados
-                            else if (e.equals("aprobado") || e.equals("7")) {
+                            else if (e.contains("aprobado")) {
                                 estadoFrontend = "Aprobado";
                             }
-                            // Rechazados
-                            else if (e.equals("rechazado") || e.equals("-1")) {
+                            else if (e.contains("rechazado")) {
                                 estadoFrontend = "Rechazado";
                             }
-                            // En revisión / Proceso
-                            else if (e.contains("revision") || e.contains("evaluacion") || e.contains("proceso") || 
-                                     e.equals("3") || e.equals("4") || e.equals("5") || e.equals("6") || e.equals("en_revision")) {
+                            else if (e.contains("revision") || e.contains("evaluacion") || e.contains("proceso")) {
                                 estadoFrontend = "En Revisión";
                             }
-                            // Borradores / Enviados / Pendientes
-                            else if (e.equals("borrador") || e.equals("enviado") || e.equals("1") || e.equals("2")) {
+                            else if (e.contains("borrador") || e.contains("enviado") || e.contains("pendiente")) {
                                 estadoFrontend = "Pendiente";
                             }
-                            // Fallback para debug: Si no cae en ninguno, mostrar el valor original (para saber qué es)
                             else {
-                                estadoFrontend = estadoBD + " (?)"; 
+                                // Usar el nombre tal cual viene de la BD
+                                estadoFrontend = nombreEstadoBD;
                             }
                         }
                         p.put("estado", estadoFrontend);
@@ -318,10 +317,10 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                             <i class="fas fa-tasks mr-1"></i> Estado del Proyecto
                         </label>
                         <select id="estado" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent">
+                            <option value="">Todos los estados</option>
                             <% for (String e : estadosSet) { %>
                                 <option value="<%= e %>"><%= e %></option>
                             <% } %>
-                            <option value="">Todos los estados</option>
                         </select>
                     </div>
                     
@@ -469,6 +468,41 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
             </div>
         </div>
     </div>
+
+    <!-- Modal para cambiar estado -->
+    <div id="modal-cambiar-estado" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="bg-gradient-to-r from-[#B28854] to-[#d4b683] text-white p-4 rounded-t-lg flex justify-between items-center">
+                <h3 class="font-bold text-lg"><i class="fas fa-exchange-alt mr-2"></i>Cambiar Estado del Proyecto</h3>
+                <button onclick="cerrarModalEstado()" class="text-white hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div id="estado-proyecto-info" class="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <!-- Info del proyecto se carga dinámicamente -->
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado actual:</label>
+                    <span id="estado-actual" class="status-badge"></span>
+                </div>
+                <div class="mb-4">
+                    <label for="select-nuevo-estado" class="block text-sm font-medium text-gray-700 mb-2">Nuevo estado:</label>
+                    <select id="select-nuevo-estado" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent">
+                        <option value="">Cargando estados...</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button onclick="cerrarModalEstado()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                        Cancelar
+                    </button>
+                    <button onclick="confirmarCambioEstado()" class="btn-primary px-4 py-2 rounded-lg">
+                        <i class="fas fa-save mr-2"></i>Guardar Cambio
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
         
     </div>
     <%@ include file="/footer.jsp" %>
@@ -570,6 +604,9 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                         <button onclick="verDetalles('\${proyecto.id}')" class="text-[#7A1737] hover:text-[#A8253C] mr-3" title="Ver Detalles">
                             <i class="fas fa-eye"></i>
                         </button>
+                        <button onclick="abrirModalCambiarEstado('\${proyecto.id}')" class="text-green-600 hover:text-green-800 mr-3" title="Cambiar Estado">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
                         <button onclick="descargarProyecto('\${proyecto.id}')" class="text-[#B28854] hover:text-[#d4b683] mr-3" title="Descargar">
                             <i class="fas fa-download"></i>
                         </button>
@@ -623,10 +660,13 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
 \${proyecto.fecha}</span>
                             </div>
                             <div class="flex space-x-2">
-                                <button onclick="verDetalles('\${proyecto.id}')" class="text-[#7A1737] hover:text-[#A8253C] text-sm">
+                                <button onclick="verDetalles('\${proyecto.id}')" class="text-[#7A1737] hover:text-[#A8253C] text-sm" title="Ver Detalles">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button onclick="descargarProyecto('\${proyecto.id}')" class="text-[#B28854] hover:text-[#d4b683] text-sm">
+                                <button onclick="abrirModalCambiarEstado('\${proyecto.id}')" class="text-green-600 hover:text-green-800 text-sm" title="Cambiar Estado">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                                <button onclick="descargarProyecto('\${proyecto.id}')" class="text-[#B28854] hover:text-[#d4b683] text-sm" title="Descargar">
                                     <i class="fas fa-download"></i>
                                 </button>
                             </div>
@@ -868,6 +908,11 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                                 <i class="fas fa-external-link-alt mr-2"></i>
                                 Ver información completa del proyecto
                             </a>
+                            <button onclick="cerrarModal(); abrirModalCambiarEstado('\${proyecto.id}')" 
+                               class="bg-[#B28854] text-white py-3 px-4 rounded-lg text-center hover:bg-[#d4b683] transition flex items-center justify-center">
+                                <i class="fas fa-exchange-alt mr-2"></i>
+                                Cambiar estado del proyecto
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -989,10 +1034,132 @@ tipo === 'info' ? 'bg-blue-500 text-white' :
             }
         }
 
+        // ========================================
+        // FUNCIONES PARA CAMBIAR ESTADO
+        // ========================================
+        
+        let proyectoSeleccionadoId = null;
+        let estadosCargados = [];
+
+        // Función para abrir modal de cambio de estado
+        async function abrirModalCambiarEstado(idProyecto) {
+            proyectoSeleccionadoId = idProyecto;
+            const proyecto = proyectos.find(p => p.id === idProyecto);
+            
+            if (!proyecto) {
+                mostrarNotificacion('Proyecto no encontrado', 'error');
+                return;
+            }
+
+            // Mostrar info del proyecto
+            document.getElementById('estado-proyecto-info').innerHTML = `
+                <p class="font-semibold text-gray-800">\${proyecto.titulo}</p>
+                <p class="text-sm text-gray-600">ID: \${proyecto.id} | \${proyecto.institucion}</p>
+            `;
+
+            // Mostrar estado actual
+            const estadoActualSpan = document.getElementById('estado-actual');
+            estadoActualSpan.textContent = proyecto.estado;
+            estadoActualSpan.className = 'status-badge ' + getClaseEstado(proyecto.estado);
+
+            // Cargar estados disponibles
+            await cargarEstadosDisponibles();
+
+            // Mostrar modal
+            document.getElementById('modal-cambiar-estado').style.display = 'flex';
+        }
+
+        // Función para cargar estados desde la BD
+        async function cargarEstadosDisponibles() {
+            const select = document.getElementById('select-nuevo-estado');
+            select.innerHTML = '<option value="">Cargando...</option>';
+
+            try {
+                const response = await fetch('cambiarEstado.jsp?action=getEstados');
+                const data = await response.json();
+
+                if (data.success) {
+                    estadosCargados = data.estados;
+                    select.innerHTML = '<option value="">-- Seleccione un estado --</option>';
+                    
+                    data.estados.forEach(estado => {
+                        const option = document.createElement('option');
+                        option.value = estado.id;
+                        option.textContent = estado.nombre;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Error al cargar estados</option>';
+                    mostrarNotificacion('Error al cargar estados: ' + data.message, 'error');
+                }
+            } catch (error) {
+                select.innerHTML = '<option value="">Error de conexión</option>';
+                mostrarNotificacion('Error de conexión al cargar estados', 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // Función para confirmar cambio de estado
+        async function confirmarCambioEstado() {
+            const nuevoEstadoId = document.getElementById('select-nuevo-estado').value;
+
+            if (!nuevoEstadoId) {
+                mostrarNotificacion('Seleccione un estado', 'info');
+                return;
+            }
+
+            if (!proyectoSeleccionadoId) {
+                mostrarNotificacion('Error: No hay proyecto seleccionado', 'error');
+                return;
+            }
+
+            const estadoSeleccionado = estadosCargados.find(e => e.id == nuevoEstadoId);
+            
+            if (!confirm(`¿Está seguro de cambiar el estado del proyecto a "${estadoSeleccionado ? estadoSeleccionado.nombre : 'Nuevo estado'}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('cambiarEstado.jsp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=cambiarEstado&idProyecto=\${proyectoSeleccionadoId}&nuevoEstado=\${nuevoEstadoId}`
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    mostrarNotificacion('Estado actualizado correctamente', 'success');
+                    
+                    // Cerrar modal y recargar la página para obtener datos frescos
+                    cerrarModalEstado();
+                    
+                    // Recargar la página después de un breve delay para que se vea la notificación
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    mostrarNotificacion('Error: ' + data.message, 'error');
+                }
+            } catch (error) {
+                mostrarNotificacion('Error de conexión al cambiar estado', 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // Función para cerrar modal de estado
+        function cerrarModalEstado() {
+            document.getElementById('modal-cambiar-estado').style.display = 'none';
+            proyectoSeleccionadoId = null;
+        }
+
         // Cerrar modal con Escape
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 cerrarModal();
+                cerrarModalEstado();
             }
         });
 
@@ -1000,6 +1167,12 @@ tipo === 'info' ? 'bg-blue-500 text-white' :
         document.getElementById('modal-detalles').addEventListener('click', function(e) {
             if (e.target === this) {
                 cerrarModal();
+            }
+        });
+
+        document.getElementById('modal-cambiar-estado').addEventListener('click', function(e) {
+            if (e.target === this) {
+                cerrarModalEstado();
             }
         });
     </script>
