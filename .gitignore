@@ -8,6 +8,13 @@ local.properties
 # Log/OS Files
 *.log
 
+BORRAR.JSP
+test_submit.jsp
+db.properties
+PanelPrincipal.jsp
+proyectos.jsp.bak
+mail.properties
+
 # Android Studio generated files and folders
 captures/
 .externalNativeBuild/
@@ -31,3 +38,10 @@ google-services.json
 
 # Android Profiling
 *.hprof
+*.bak
+
+/uploads/
+
+log_correos.txt
+mock_mail_api.jsp
+db.sql
