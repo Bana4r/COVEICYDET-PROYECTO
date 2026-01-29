@@ -105,12 +105,22 @@
             rsEstado.close();
             stmtEstado.close();
             
-            // Establecer variable de sesión para el trigger
+            // Establecer variable de sesión para el trigger (Motivo)
             String sqlConfig = "SELECT set_config('app.motivo_ultimo_cambio', ?, false)";
             PreparedStatement stmtConfig = conn.prepareStatement(sqlConfig);
             stmtConfig.setString(1, motivo);
             stmtConfig.executeQuery();
             stmtConfig.close();
+
+            // Establecer variable de sesión para el trigger (Usuario ID)
+            Object usuarioIdObj = session.getAttribute("id_usuario");
+            String usuarioIdStr = (usuarioIdObj != null) ? String.valueOf(usuarioIdObj) : "1";
+            
+            String sqlConfigUser = "SELECT set_config('app.current_user_id', ?, false)";
+            PreparedStatement stmtConfigUser = conn.prepareStatement(sqlConfigUser);
+            stmtConfigUser.setString(1, usuarioIdStr);
+            stmtConfigUser.executeQuery();
+            stmtConfigUser.close();
 
             // Actualizar el estado del proyecto con el ID numérico
             String sqlUpdate = "UPDATE proyectos SET estado_proyecto = ? WHERE id_proyecto = ?";
@@ -125,7 +135,6 @@
                 // Actualizar historial con usuario (si el trigger no lo maneja, lo hacemos aquí como respaldo)
                 // Es probable que el trigger ya haya insertado el registro, así que actualizamos el usuario
                 try {
-                    Object usuarioIdObj = session.getAttribute("id_usuario");
                     Integer usuarioId = (usuarioIdObj != null) ? (Integer) usuarioIdObj : null;
                     
                     if (usuarioId != null) {

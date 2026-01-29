@@ -15,467 +15,194 @@
 <%@ include file="/WEB-INF/conexion.jsp"%>
 
 <%
-    // Configurar headers para descarga de Excel
-    String nombreArchivo = "proyectos_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date()) + ".xls";
+    String nombreArchivo = "BASE_DATOS_MAESTRA_PROYECTOS_" + new SimpleDateFormat("yyyyMMdd_HHmm").format(new java.util.Date()) + ".xls";
     response.setHeader("Content-Disposition", "attachment; filename=" + nombreArchivo);
-    response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    response.setHeader("Pragma", "no-cache");
-    response.setDateHeader("Expires", 0);
-
-    // Lista para almacenar proyectos
+    
     List<Map<String, Object>> proyectosList = new ArrayList<>();
-    String mensajeError = null;
-
-    SimpleDateFormat formatoFecha = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-
-    // Contadores para resumen
-    int totalPendientes = 0;
-    int totalEnRevision = 0;
-    int totalAprobados = 0;
-    int totalRechazados = 0;
-    int totalFinalizados = 0;
 
     if (conn != null) {
         try {
-            String sql = "SELECT " +
-                       "p.id_proyecto, " +
-                       "p.titulo, " +
-                       "p.estado_proyecto, " +
-                       "p.fecha_creacion, " +
-                       "p.institucion_proponente, " +
-                       "p.area_conocimiento, " +
-                       "p.sector_impacto_proyecto, " +
-                       "p.nivel_tlr, " +
-                       "p.nivel_slr, " +
-                       "p.resumen_ejecutivo, " +
-                       "c.nombre_convocatoria, " +
-                       "u.nombre, " +
-                       "u.primer_apellido, " +
-                       "u.segundo_apellido, " +
-                       "u.correo_electronico " +
-                       "FROM Proyectos p " +
-                       "LEFT JOIN proyecto_usuarios pu ON p.id_proyecto = pu.id_proyecto " +
-                       "LEFT JOIN usuarios u ON pu.id_usuario = u.id_usuario " +
-                       "LEFT JOIN convocatoria c ON p.convocatoria_id = c.id_convocatoria " +
-                       "ORDER BY p.fecha_creacion DESC";
-                       
+            // SQL ULTRA-EXTENSO: Cruce de todas las tablas del esquema
+            String sql = "SELECT p.*, c.nombre_convocatoria, " +
+                // ESTADO DEL PROYECTO (Texto)
+                "CASE " +
+                "  WHEN p.estado_proyecto ~ '^[0-9]+$' THEN (SELECT nombre_estado FROM estado_proyecto WHERE id_estado = p.estado_proyecto::integer) " +
+                "  ELSE p.estado_proyecto " +
+                "END AS nombre_estado_proyecto, " +
+                
+                // Datos del Usuario que registró (incluye RFC)
+                "(SELECT u.rfc || ' | ' || u.correo_electronico FROM usuarios u JOIN proyecto_usuarios pu ON u.id_usuario = pu.id_usuario WHERE pu.id_proyecto = p.id_proyecto LIMIT 1) as datos_registro, " +
+                
+                // Responsable TÉCNICO (Separado)
+                "(SELECT nombre_completo FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'tecnico' LIMIT 1) as resp_tecnico_nombre, " +
+                "(SELECT correo_electronico FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'tecnico' LIMIT 1) as resp_tecnico_email, " +
+                "(SELECT telefono FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'tecnico' LIMIT 1) as resp_tecnico_tel, " +
+                
+                // Responsable LEGAL (Separado)
+                "(SELECT nombre_completo FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'legal' LIMIT 1) as resp_legal_nombre, " +
+                "(SELECT correo_electronico FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'legal' LIMIT 1) as resp_legal_email, " +
+                "(SELECT telefono FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'legal' LIMIT 1) as resp_legal_tel, " +
+                
+                // Responsable ADMINISTRATIVO (Separado)
+                "(SELECT nombre_completo FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'administrativo' LIMIT 1) as resp_admin_nombre, " +
+                "(SELECT correo_electronico FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'administrativo' LIMIT 1) as resp_admin_email, " +
+                "(SELECT telefono FROM responsable r JOIN proyecto_responsables pr ON r.id_responsable = pr.id_responsable WHERE pr.id_proyecto = p.id_proyecto AND pr.tipo_responsable = 'administrativo' LIMIT 1) as resp_admin_tel, " +
+                
+                // Grupo de Trabajo (Participantes)
+                "(SELECT STRING_AGG(nombre_completo || ' [' || institucion_adscripcion || ' - ' || grado_academico || ']', ' / ') FROM participante pa JOIN gruposdetrabajo gt ON pa.id_gt_participante = gt.id_gt_participante WHERE gt.id_proyecto = p.id_proyecto) as detalle_gt, " +
+                
+                // Estudiantes
+                "(SELECT STRING_AGG(e.nombre_completo || ' [' || e.institucion || ' - ' || e.nivel_academico || ']', ' / ') FROM estudiantes e JOIN estudiantes_participantes ep ON e.id_estudiante = ep.id_estudiante WHERE ep.id_proyecto = p.id_proyecto) as detalle_estudiantes, " +
+                
+                // Organizaciones Sociales
+                "(SELECT STRING_AGG(o.nombre_razon_social || ' (Contacto: ' || o.responsable || ' - ' || o.correo_electronico || ')', ' / ') FROM organizacion_social o JOIN proyecto_organizaciones po ON o.org_social_id = po.org_social_id WHERE po.id_proyecto = p.id_proyecto) as detalle_orgs, " +
+                
+                // Presupuesto Total y Detallado (Con salto de línea XML entity &#10;)
+                "(SELECT SUM(monto) FROM semestres_proyecto WHERE id_proyecto = p.id_proyecto) as total_presupuesto, " +
+                "(SELECT STRING_AGG('S' || sp.id_semestre || ' - ' || par.nombre || ': $' || sp.monto, '&#10;') FROM semestres_proyecto sp JOIN partidas par ON sp.id_partidas = par.id_partidas WHERE sp.id_proyecto = p.id_proyecto) as desglose_partidas, " +
+                
+                // Cronograma
+                "(SELECT STRING_AGG('S' || id_semestre || ': ' || nombre_actividad || ' (Entregable: ' || entregables || ')', ' | ') FROM cronograma_actividades ca JOIN actividades a ON ca.id_actividad = a.id_actividad WHERE ca.id_proyecto = p.id_proyecto) as cronograma_completo " +
+                
+                "FROM proyectos p " +
+                "LEFT JOIN convocatoria c ON p.convocatoria_id = c.id_convocatoria " +
+                "ORDER BY p.id_proyecto ASC";
+
             try (PreparedStatement stmt = conn.prepareStatement(sql);
                  ResultSet rs = stmt.executeQuery()) {
-                
+                ResultSetMetaData md = rs.getMetaData();
                 while (rs.next()) {
-                    Map<String, Object> proyecto = new HashMap<>();
-                    proyecto.put("id", rs.getInt("id_proyecto"));
-                    proyecto.put("titulo", rs.getString("titulo"));
-                    
-                    // Mapeo de estado
-                    String estadoBD = rs.getString("estado_proyecto");
-                    String estadoFrontend = "Pendiente";
-                    
-                    if (estadoBD != null) {
-                        String e = estadoBD.toLowerCase().trim();
-                        
-                        if (e.equals("finalizado") || e.equals("completado") || e.equals("19")) {
-                            estadoFrontend = "Finalizado";
-                            totalFinalizados++;
-                        } else if (e.equals("aprobado") || e.equals("7")) {
-                            estadoFrontend = "Aprobado";
-                            totalAprobados++;
-                        } else if (e.equals("rechazado") || e.equals("-1")) {
-                            estadoFrontend = "Rechazado";
-                            totalRechazados++;
-                        } else if (e.contains("revision") || e.contains("evaluacion") || e.contains("proceso") || 
-                                 e.equals("3") || e.equals("4") || e.equals("5") || e.equals("6") || e.equals("en_revision")) {
-                            estadoFrontend = "En Revisión";
-                            totalEnRevision++;
-                        } else if (e.equals("borrador") || e.equals("enviado") || e.equals("1") || e.equals("2")) {
-                            estadoFrontend = "Pendiente";
-                            totalPendientes++;
-                        } else {
-                            estadoFrontend = estadoBD;
-                            totalPendientes++;
-                        }
-                    } else {
-                        totalPendientes++;
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= md.getColumnCount(); i++) {
+                        row.put(md.getColumnName(i), rs.getObject(i));
                     }
-                    proyecto.put("estado", estadoFrontend);
-                    proyecto.put("estadoOriginal", estadoBD);
-
-                    // Fecha
-                    Timestamp ts = rs.getTimestamp("fecha_creacion");
-                    proyecto.put("fecha", ts);
-
-                    // Otros campos
-                    proyecto.put("institucion", rs.getString("institucion_proponente"));
-                    proyecto.put("convocatoria", rs.getString("nombre_convocatoria"));
-                    proyecto.put("area", rs.getString("area_conocimiento"));
-                    proyecto.put("sector", rs.getString("sector_impacto_proyecto"));
-                    proyecto.put("tlr", rs.getString("nivel_tlr"));
-                    proyecto.put("slr", rs.getString("nivel_slr"));
-                    proyecto.put("resumen", rs.getString("resumen_ejecutivo"));
-
-                    // Responsable
-                    String nombreUsr = rs.getString("nombre");
-                    String ape1 = rs.getString("primer_apellido");
-                    String ape2 = rs.getString("segundo_apellido");
-                    String nombreCompleto = (nombreUsr != null ? nombreUsr : "") + " " + 
-                                          (ape1 != null ? ape1 : "") + " " + 
-                                          (ape2 != null ? ape2 : "");
-                    proyecto.put("responsable", nombreCompleto.trim().isEmpty() ? "Sin asignar" : nombreCompleto.trim());
-                    proyecto.put("email", rs.getString("correo_electronico"));
-
-                    proyectosList.add(proyecto);
+                    proyectosList.add(row);
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("Error de base de datos en archivoXls.jsp (proyectos): " + e.getMessage());
-            e.printStackTrace();
-            mensajeError = "Error de conexión a la base de datos: " + e.getMessage();
-        } finally {
-            if (conn != null) {
-                try { conn.close(); } catch (SQLException e) { /* ignorar */ }
-            }
-        }
-    } else {
-        mensajeError = dbError != null && !dbError.isEmpty() ? dbError : "No se pudo establecer conexión con la base de datos.";
+        } catch (SQLException e) { e.printStackTrace(); } finally { if (conn != null) conn.close(); }
     }
 %>
 
 <?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- 
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Title>Proyectos - COVEICYDET</Title>
-  <Author>Sistema COVEICYDET</Author>
-  <Created><%= new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(new java.util.Date()) %></Created>
- </DocumentProperties>
- 
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
  <Styles>
-  <!-- Estilo para encabezados -->
-  <Style ss:ID="Header">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#000000"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#000000"/>
-   </Borders>
-   <Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11"/>
-   <Interior ss:Color="#7A1737" ss:Pattern="Solid"/>
-  </Style>
-  
-  <!-- Estilo para título principal -->
-  <Style ss:ID="Title">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Font ss:Bold="1" ss:Color="#7A1737" ss:Size="16"/>
-  </Style>
-  
-  <!-- Estilo para subtítulo -->
-  <Style ss:ID="Subtitle">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Font ss:Color="#666666" ss:Size="10"/>
-  </Style>
-  
-  <!-- Estilo para celdas de datos -->
-  <Style ss:ID="Data">
-   <Alignment ss:Vertical="Center" ss:WrapText="1"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Size="10"/>
-  </Style>
-  
-  <!-- Estilo para celdas numéricas -->
-  <Style ss:ID="Number">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Size="10"/>
-   <NumberFormat ss:Format="0"/>
-  </Style>
-  
-  <!-- Estilo para estado Pendiente -->
-  <Style ss:ID="Pendiente">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Bold="1" ss:Color="#92400e" ss:Size="10"/>
-   <Interior ss:Color="#fef3c7" ss:Pattern="Solid"/>
-  </Style>
-  
-  <!-- Estilo para estado En Revisión -->
-  <Style ss:ID="EnRevision">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Bold="1" ss:Color="#1e40af" ss:Size="10"/>
-   <Interior ss:Color="#dbeafe" ss:Pattern="Solid"/>
-  </Style>
-  
-  <!-- Estilo para estado Aprobado -->
-  <Style ss:ID="Aprobado">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Bold="1" ss:Color="#065f46" ss:Size="10"/>
-   <Interior ss:Color="#d1fae5" ss:Pattern="Solid"/>
-  </Style>
-  
-  <!-- Estilo para estado Rechazado -->
-  <Style ss:ID="Rechazado">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Bold="1" ss:Color="#991b1b" ss:Size="10"/>
-   <Interior ss:Color="#fee2e2" ss:Pattern="Solid"/>
-  </Style>
-  
-  <!-- Estilo para estado Finalizado -->
-  <Style ss:ID="Finalizado">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Bold="1" ss:Color="#3730a3" ss:Size="10"/>
-   <Interior ss:Color="#e0e7ff" ss:Pattern="Solid"/>
-  </Style>
-  
-  <!-- Estilo para fechas -->
-  <Style ss:ID="Date">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CCCCCC"/>
-   </Borders>
-   <Font ss:Size="10"/>
-  </Style>
+  <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#7A1737" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:WrapText="1"/></Style>
+  <Style ss:ID="Data"><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+  <Style ss:ID="Money"><NumberFormat ss:Format="Currency"/><Alignment ss:Vertical="Top"/></Style>
+  <Style ss:ID="ID"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1"/></Style>
  </Styles>
- 
- <Worksheet ss:Name="Proyectos">
-  <Table ss:DefaultColumnWidth="100" ss:DefaultRowHeight="20">
-   <!-- Definir anchos de columnas -->
-   <Column ss:Index="1" ss:Width="50"/>   <!-- ID -->
-   <Column ss:Index="2" ss:Width="250"/>  <!-- Título -->
-   <Column ss:Index="3" ss:Width="150"/>  <!-- Institución -->
-   <Column ss:Index="4" ss:Width="150"/>  <!-- Convocatoria -->
-   <Column ss:Index="5" ss:Width="100"/>  <!-- Estado -->
-   <Column ss:Index="6" ss:Width="120"/>  <!-- Fecha -->
-   <Column ss:Index="7" ss:Width="150"/>  <!-- Responsable -->
-   <Column ss:Index="8" ss:Width="180"/>  <!-- Email -->
-   <Column ss:Index="9" ss:Width="120"/>  <!-- Área -->
-   <Column ss:Index="10" ss:Width="120"/> <!-- Sector -->
-   <Column ss:Index="11" ss:Width="60"/>  <!-- TLR -->
-   <Column ss:Index="12" ss:Width="60"/>  <!-- SLR -->
+ <Worksheet ss:Name="PROYECTOS_FULL_DATA">
+  <Table>
+   <!-- Definición de anchos de columna -->
+   <Column ss:Width="40"/>  <!-- ID -->
+   <Column ss:Width="250"/> <!-- Titulo -->
+   <Column ss:Width="120"/> <!-- Convocatoria -->
+   <Column ss:Width="100"/> <!-- Estado -->
+   <Column ss:Width="100"/> <!-- Presupuesto -->
+   <Column ss:Width="300"/> <!-- Desglose -->
+   <Column ss:Width="150"/> <!-- Institucion -->
+   <Column ss:Width="150"/> <!-- Municipio -->
+   <Column ss:Width="200"/> <!-- Registro -->
    
-   <!-- Título del reporte -->
-   <Row ss:Height="30">
-    <Cell ss:MergeAcross="11" ss:StyleID="Title">
-     <Data ss:Type="String">REPORTE DE PROYECTOS - COVEICYDET</Data>
-    </Cell>
-   </Row>
+   <!-- Resp Tecnico -->
+   <Column ss:Width="200"/> <Column ss:Width="150"/> <Column ss:Width="100"/>
+   <!-- Resp Legal -->
+   <Column ss:Width="200"/> <Column ss:Width="150"/> <Column ss:Width="100"/>
+   <!-- Resp Admin -->
+   <Column ss:Width="200"/> <Column ss:Width="150"/> <Column ss:Width="100"/>
    
-   <!-- Subtítulo con fecha de generación -->
-   <Row ss:Height="20">
-    <Cell ss:MergeAcross="11" ss:StyleID="Subtitle">
-     <Data ss:Type="String">Generado el: <%= formatoFecha.format(new java.util.Date()) %> | Total de registros: <%= proyectosList.size() %></Data>
-    </Cell>
-   </Row>
+   <Column ss:Width="300"/> <!-- Grupo Trabajo -->
+   <Column ss:Width="200"/> <!-- Estudiantes -->
+   <Column ss:Width="200"/> <!-- Organizaciones -->
+   <Column ss:Width="80"/>  <!-- TRL -->
+   <Column ss:Width="300"/> <!-- Resumen -->
+   <Column ss:Width="300"/> <!-- Obj General -->
+   <Column ss:Width="300"/> <!-- Obj Esp -->
+   <Column ss:Width="300"/> <!-- Metodologia -->
+   <Column ss:Width="300"/> <!-- Cronograma -->
+   <Column ss:Width="200"/> <!-- Imp Social -->
+   <Column ss:Width="200"/> <!-- Imp Amb -->
+   <Column ss:Width="200"/> <!-- Imp Eco -->
+   <Column ss:Width="200"/> <!-- Imp Cient -->
    
-   <!-- Fila vacía -->
-   <Row ss:Height="10"/>
-   
-   <!-- Encabezados de columnas -->
-   <Row ss:Height="35">
+   <Row ss:Height="45">
     <Cell ss:StyleID="Header"><Data ss:Type="String">ID</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Título del Proyecto</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Institución</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Convocatoria</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Estado</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Fecha Creación</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Responsable</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Correo Electrónico</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Área</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Sector</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">TLR</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">SLR</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">TITULO DEL PROYECTO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">CONVOCATORIA</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">ESTADO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">PRESUPUESTO TOTAL</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">DESGLOSE POR PARTIDAS</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">INSTITUCION</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">MUNICIPIO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">REGISTRO (RFC/CORREO)</Data></Cell>
+    
+    <Cell ss:StyleID="Header"><Data ss:Type="String">RESPONSABLE TÉCNICO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">EMAIL TÉCNICO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">TELÉFONO TÉCNICO</Data></Cell>
+    
+    <Cell ss:StyleID="Header"><Data ss:Type="String">RESPONSABLE LEGAL</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">EMAIL LEGAL</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">TELÉFONO LEGAL</Data></Cell>
+    
+    <Cell ss:StyleID="Header"><Data ss:Type="String">RESPONSABLE ADMON</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">EMAIL ADMON</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">TELÉFONO ADMON</Data></Cell>
+    
+    <Cell ss:StyleID="Header"><Data ss:Type="String">GRUPO DE TRABAJO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">ESTUDIANTES</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">ORGANIZACIONES VINCULADAS</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">NIVEL TRL/SRL</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">RESUMEN EJECUTIVO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">OBJETIVO GENERAL</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">OBJETIVOS ESPECÍFICOS</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">METODOLOGÍA</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">CRONOGRAMA Y ENTREGABLES</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">IMPACTO SOCIAL</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">IMPACTO AMBIENTAL</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">IMPACTO ECONÓMICO</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">IMPACTO CIENTÍFICO</Data></Cell>
    </Row>
-   
-   <% if (mensajeError != null) { %>
-   <!-- Fila de error -->
-   <Row>
-    <Cell ss:MergeAcross="11" ss:StyleID="Data">
-     <Data ss:Type="String">Error: <%= mensajeError %></Data>
-    </Cell>
-   </Row>
-   <% } else if (proyectosList.isEmpty()) { %>
-   <!-- Fila sin datos -->
-   <Row>
-    <Cell ss:MergeAcross="11" ss:StyleID="Data">
-     <Data ss:Type="String">No hay proyectos registrados en el sistema.</Data>
-    </Cell>
-   </Row>
-   <% } else { %>
-   <!-- Datos de proyectos -->
-   <%
-   for (Map<String, Object> proyecto : proyectosList) {
-       Integer id = (Integer) proyecto.get("id");
-       String titulo = (String) proyecto.get("titulo");
-       String institucion = (String) proyecto.get("institucion");
-       String convocatoria = (String) proyecto.get("convocatoria");
-       String estado = (String) proyecto.get("estado");
-       Timestamp fecha = (Timestamp) proyecto.get("fecha");
-       String responsable = (String) proyecto.get("responsable");
-       String email = (String) proyecto.get("email");
-       String area = (String) proyecto.get("area");
-       String sector = (String) proyecto.get("sector");
-       String tlr = (String) proyecto.get("tlr");
-       String slr = (String) proyecto.get("slr");
-       
-       // Determinar estilo según estado
-       String estiloEstado = "Data";
-       if (estado != null) {
-           if (estado.equals("Pendiente")) estiloEstado = "Pendiente";
-           else if (estado.equals("En Revisión")) estiloEstado = "EnRevision";
-           else if (estado.equals("Aprobado")) estiloEstado = "Aprobado";
-           else if (estado.equals("Rechazado")) estiloEstado = "Rechazado";
-           else if (estado.equals("Finalizado")) estiloEstado = "Finalizado";
-       }
-   %>
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Number"><Data ss:Type="Number"><%= id != null ? id : 0 %></Data></Cell>
-    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= titulo != null ? titulo : "" %></Data></Cell>
-    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= institucion != null ? institucion : "No especificada" %></Data></Cell>
-    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= convocatoria != null ? convocatoria : "Sin convocatoria" %></Data></Cell>
-    <Cell ss:StyleID="<%= estiloEstado %>"><Data ss:Type="String"><%= estado != null ? estado : "" %></Data></Cell>
-    <Cell ss:StyleID="Date"><Data ss:Type="String"><%= fecha != null ? formatoFecha.format(fecha) : "" %></Data></Cell>
-    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= responsable != null ? responsable : "Sin asignar" %></Data></Cell>
-    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= email != null ? email : "" %></Data></Cell>
-    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= area != null ? area : "No especificada" %></Data></Cell>
-    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= sector != null ? sector : "No especificado" %></Data></Cell>
-    <Cell ss:StyleID="Number"><Data ss:Type="String"><%= tlr != null ? tlr : "N/A" %></Data></Cell>
-    <Cell ss:StyleID="Number"><Data ss:Type="String"><%= slr != null ? slr : "N/A" %></Data></Cell>
+
+   <% for (Map<String, Object> p : proyectosList) { %>
+   <Row ss:AutoFitHeight="1">
+    <Cell ss:StyleID="ID"><Data ss:Type="Number"><%= p.get("id_proyecto") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("titulo") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("nombre_convocatoria") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("nombre_estado_proyecto") %></Data></Cell>
+    <Cell ss:StyleID="Money"><Data ss:Type="Number"><%= p.get("total_presupuesto") != null ? p.get("total_presupuesto") : 0 %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("desglose_partidas") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("institucion_proponente") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("municipio") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("datos_registro") %></Data></Cell>
+    
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_tecnico_nombre") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_tecnico_email") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_tecnico_tel") %></Data></Cell>
+    
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_legal_nombre") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_legal_email") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_legal_tel") %></Data></Cell>
+    
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_admin_nombre") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_admin_email") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resp_admin_tel") %></Data></Cell>
+    
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("detalle_gt") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("detalle_estudiantes") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("detalle_orgs") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("nivel_tlr") + " / " + p.get("nivel_slr") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resumen_ejecutivo") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("objetivos_general") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("objetivos_especificos") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("resumen_metodologia") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("cronograma_completo") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("impacto_social") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("impacto_ambiental") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("impacto_economico") %></Data></Cell>
+    <Cell ss:StyleID="Data"><Data ss:Type="String"><%= p.get("impacto_cientificotecnologico") %></Data></Cell>
    </Row>
    <% } %>
-   <% } %>
-   
   </Table>
-  
-  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
-   <PageSetup>
-    <Layout x:Orientation="Landscape"/>
-    <Header x:Data="&amp;C&amp;&quot;Arial,Bold&quot;&amp;14COVEICYDET - Proyectos"/>
-    <Footer x:Data="&amp;CPage &amp;P of &amp;N"/>
-   </PageSetup>
-   <FitToPage/>
-   <Print>
-    <FitWidth>1</FitWidth>
-    <FitHeight>0</FitHeight>
-   </Print>
-   <FreezePanes/>
-   <FrozenNoSplit/>
-   <SplitHorizontal>4</SplitHorizontal>
-   <TopRowBottomPane>4</TopRowBottomPane>
-   <ActivePane>2</ActivePane>
-  </WorksheetOptions>
  </Worksheet>
- 
- <!-- Segunda hoja: Resumen estadístico -->
- <Worksheet ss:Name="Resumen">
-  <Table ss:DefaultColumnWidth="150" ss:DefaultRowHeight="20">
-   <Column ss:Index="1" ss:Width="200"/>
-   <Column ss:Index="2" ss:Width="100"/>
-   
-   <Row ss:Height="30">
-    <Cell ss:MergeAcross="1" ss:StyleID="Title">
-     <Data ss:Type="String">RESUMEN ESTADÍSTICO DE PROYECTOS</Data>
-    </Cell>
-   </Row>
-   
-   <Row ss:Height="10"/>
-   
-   <Row ss:Height="25">
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Concepto</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Cantidad</Data></Cell>
-   </Row>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Data"><Data ss:Type="String">Total de Proyectos</Data></Cell>
-    <Cell ss:StyleID="Number"><Data ss:Type="Number"><%= proyectosList.size() %></Data></Cell>
-   </Row>
-   
-   <Row ss:Height="10"/>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Data"><Data ss:Type="String">Proyectos Pendientes</Data></Cell>
-    <Cell ss:StyleID="Pendiente"><Data ss:Type="Number"><%= totalPendientes %></Data></Cell>
-   </Row>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Data"><Data ss:Type="String">Proyectos En Revisión</Data></Cell>
-    <Cell ss:StyleID="EnRevision"><Data ss:Type="Number"><%= totalEnRevision %></Data></Cell>
-   </Row>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Data"><Data ss:Type="String">Proyectos Aprobados</Data></Cell>
-    <Cell ss:StyleID="Aprobado"><Data ss:Type="Number"><%= totalAprobados %></Data></Cell>
-   </Row>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Data"><Data ss:Type="String">Proyectos Rechazados</Data></Cell>
-    <Cell ss:StyleID="Rechazado"><Data ss:Type="Number"><%= totalRechazados %></Data></Cell>
-   </Row>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Data"><Data ss:Type="String">Proyectos Finalizados</Data></Cell>
-    <Cell ss:StyleID="Finalizado"><Data ss:Type="Number"><%= totalFinalizados %></Data></Cell>
-   </Row>
-   
-   <Row ss:Height="10"/>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Subtitle"><Data ss:Type="String">Fecha de generación:</Data></Cell>
-    <Cell ss:StyleID="Date"><Data ss:Type="String"><%= formatoFecha.format(new java.util.Date()) %></Data></Cell>
-   </Row>
-   
-  </Table>
-  
-  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
-   <PageSetup>
-    <Layout x:Orientation="Portrait"/>
-   </PageSetup>
-  </WorksheetOptions>
- </Worksheet>
- 
 </Workbook>

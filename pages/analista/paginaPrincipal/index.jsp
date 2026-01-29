@@ -8,18 +8,13 @@
     int proyectosEnProgreso = 0;
     int proyectosEnBorrador = 0;
     
-    Connection conn = null;
     PreparedStatement ps = null;
     ResultSet rs = null;
     
+    %> <%@ include file="/WEB-INF/conexion.jsp" %> <%
+    
     try {
-        // Configuración de la conexión a PostgreSQL
-        String url = "jdbc:postgresql://localhost:5432/proyectos";
-        String username = "dbusr25";
-        String password = "mxToro24000Chocolate";
-        
-        Class.forName("org.postgresql.Driver");
-        conn = DriverManager.getConnection(url, username, password);
+        if (conn == null) throw new Exception(dbError);
         
         // Consulta para todos los proyectos del sistema (sin filtro de usuario)
         String sql = "SELECT estado_proyecto, COUNT(*) as total FROM proyectos GROUP BY estado_proyecto";

@@ -23,28 +23,99 @@
   // 2. Verificar si el usuario ya tiene un proyecto (para la variable hasProject)
   // Solo verificamos si hay usuario logueado
   if (idUsuarioHeader != null) {
-    Connection connHeader = null;
-    try {
-      Class.forName("org.postgresql.Driver");
-      connHeader = DriverManager.getConnection("jdbc:postgresql://localhost:5432/proyectos", "dbusr25", "mxToro24000Chocolate");
-            
-      // IMPORTANTE: Ajusta "id_usuario" si tu tabla proyectos usa otro nombre (ej. id_responsable)
-      String sqlHeader = "SELECT 1 FROM proyectos WHERE id_usuario = ? LIMIT 1"; 
-      PreparedStatement psHeader = connHeader.prepareStatement(sqlHeader);
-      psHeader.setInt(1, idUsuarioHeader);
-            
-      ResultSet rsHeader = psHeader.executeQuery();
-      if (rsHeader.next()) {
-        hasProject = true;
+    { // Bloque para evitar conflictos de variables
+      Connection connHeader = null;
+      String dbErrorHeader = "";
+      try {
+          Class.forName("org.postgresql.Driver");
+          
+          java.util.Properties props = new java.util.Properties();
+          // Usamos getRealPath para leer el archivo físicamente, asegurando que los cambios se detecten al instante
+          // Ajustamos la ruta para buscar en WEB-INF/classes/db.properties donde lo movimos
+          String path = application.getRealPath("/WEB-INF/classes/db.properties");
+          
+          if (path != null && new java.io.File(path).exists()) {
+              java.io.FileInputStream fis = new java.io.FileInputStream(path);
+              props.load(fis);
+              fis.close();
+          } else {
+              // Intento alternativo por si getRealPath falla
+              java.io.InputStream is = this.getClass().getResourceAsStream("/db.properties");
+              if (is != null) {
+                  props.load(is);
+              } else {
+                  throw new Exception("No se encontró el archivo db.properties");
+              }
+          }
+
+          connHeader = DriverManager.getConnection(
+              props.getProperty("db.url"),
+              props.getProperty("db.user"),
+              props.getProperty("db.pass")
+          );
+
+      } catch (Exception e) {
+          dbErrorHeader = "Error de conexión en header: " + e.getMessage();
+          System.err.println(dbErrorHeader);
+          e.printStackTrace();
       }
+
+      if (connHeader != null) {
+        try {
+          // Obtener el último proyecto y datos de convocatoria en una sola consulta
+          String sqlHeader = "SELECT p.estado_proyecto, p.convocatoria_id, " +
+                             "(SELECT COUNT(*) FROM convocatoria WHERE estado = 2) as hay_activa, " +
+                             "(SELECT COUNT(*) FROM convocatoria WHERE estado = 2 AND id_convocatoria = p.convocatoria_id) as es_misma_activa " +
+                             "FROM proyectos p " +
+                             "JOIN proyecto_usuarios pu ON p.id_proyecto = pu.id_proyecto " +
+                             "WHERE pu.id_usuario = ? ORDER BY p.id_proyecto DESC LIMIT 1"; 
+          PreparedStatement psHeader = connHeader.prepareStatement(sqlHeader);
+          psHeader.setInt(1, idUsuarioHeader);
+          ResultSet rsHeader = psHeader.executeQuery();
+          
+          if (rsHeader.next()) {
+            String estado = rsHeader.getString("estado_proyecto");
+            int hayActiva = rsHeader.getInt("hay_activa");
+            int esMismaActiva = rsHeader.getInt("es_misma_activa");
             
-      rsHeader.close();
-      psHeader.close();
-      connHeader.close();
-    } catch (Exception e) {
-      System.out.println("Error en header verificando proyecto: " + e.getMessage());
-      // En caso de error, asumimos false para no romper la página
-      hasProject = false; 
+            if (estado != null) estado = estado.trim();
+            
+            if ("7".equals(estado)) {
+                // Cancelado (7) -> Puede registrar nuevo
+                hasProject = false;
+            } else if (!"5".equals(estado)) {
+                // Proyecto en curso (1,2,3,4,6) -> No puede registrar
+                hasProject = true;
+            } else {
+                // Finalizado (5)
+                if (hayActiva == 0) {
+                    // No hay convocatorias activas -> No puede registrar (esperar nueva)
+                    hasProject = true;
+                } else if (esMismaActiva > 0) {
+                    // La convocatoria activa es la MISMA del proyecto -> No puede registrar (ya cumplió)
+                    hasProject = true;
+                } else {
+                    // Hay convocatoria activa y es DIFERENTE -> Puede registrar
+                    hasProject = false;
+                }
+            }
+          } else {
+            // No tiene proyectos previos -> Puede registrar
+            hasProject = false;
+          }
+                
+          rsHeader.close();
+          psHeader.close();
+        } catch (Exception e) {
+          System.out.println("Error en header verificando proyecto: " + e.getMessage());
+          // Por seguridad en caso de error
+          hasProject = false; 
+        } finally {
+          if (connHeader != null) {
+            try { connHeader.close(); } catch (SQLException ex) {}
+          }
+        }
+      }
     }
   }
 %>

@@ -11,18 +11,13 @@
     int proyectosEnProgreso = 0;
     
     if (userId != null) {
-        Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         
+        %> <%@ include file="/WEB-INF/conexion.jsp" %> <%
+        
         try {
-            // Configuración de la conexión
-            String url = "jdbc:postgresql://localhost:5432/proyectos";
-            String username = "dbusr25";
-            String password = "mxToro24000Chocolate";
-            
-            Class.forName("org.postgresql.Driver");
-            conn = DriverManager.getConnection(url, username, password);
+            if (conn == null) throw new Exception(dbError);
             
             // CORRECCIÓN 2: Usar INNER JOIN para vincular proyectos con el usuario correctamente
             String sql = "SELECT p.estado_proyecto, COUNT(*) as total " +

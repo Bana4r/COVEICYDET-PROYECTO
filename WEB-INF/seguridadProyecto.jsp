@@ -1,5 +1,7 @@
 <%@ page pageEncoding="UTF-8" %>
 <%@ page import="java.sql.*" %>
+<%@ page import="java.util.Properties" %>
+<%@ page import="java.io.*" %>
 <%
     // Este archivo no debe tener etiquetas HTML, solo lógica Java
     Integer idUsuarioSeguridad = (Integer) session.getAttribute("id_usuario");
@@ -7,17 +9,30 @@
     if (idUsuarioSeguridad != null) {
         boolean tieneProyectoActivo = false;
         
-        // Usamos la conexión que ya debe estar abierta o abrimos una nueva
-        // Nota: Asumimos que quien incluye este archivo ya tiene acceso a las credenciales o al pool
-        String urlSec = "jdbc:postgresql://localhost:5432/proyectos";
-        String userSec = "dbusr25";
-        String passSec = "mxToro24000Chocolate";
-
         try {
+            // Cargar configuración centralizada
+            Properties propsSec = new Properties();
+            String pathSec = application.getRealPath("/WEB-INF/classes/db.properties");
+            
+            if (pathSec != null && new java.io.File(pathSec).exists()) {
+                try (FileInputStream fis = new FileInputStream(pathSec)) {
+                    propsSec.load(fis);
+                }
+            } else {
+                try (InputStream is = this.getClass().getResourceAsStream("/db.properties")) {
+                    if (is != null) propsSec.load(is);
+                }
+            }
+
             Class.forName("org.postgresql.Driver");
-            try (Connection connSec = DriverManager.getConnection(urlSec, userSec, passSec);
+            try (Connection connSec = DriverManager.getConnection(
+                    propsSec.getProperty("db.url"), 
+                    propsSec.getProperty("db.user"), 
+                    propsSec.getProperty("db.pass"));
                  PreparedStatement psSec = connSec.prepareStatement(
-                    "SELECT p.estado_proyecto " +
+                    "SELECT p.estado_proyecto, p.convocatoria_id, " +
+                    "(SELECT COUNT(*) FROM convocatoria WHERE estado = 2) as hay_activa, " +
+                    "(SELECT COUNT(*) FROM convocatoria WHERE estado = 2 AND id_convocatoria = p.convocatoria_id) as es_misma_activa " +
                     "FROM proyectos p " +
                     "JOIN proyecto_usuarios pu ON p.id_proyecto = pu.id_proyecto " +
                     "WHERE pu.id_usuario = ? " +
@@ -27,8 +42,28 @@
                 try (ResultSet rsSec = psSec.executeQuery()) {
                     if (rsSec.next()) {
                         String estado = rsSec.getString("estado_proyecto");
-                        if (estado != null && !"Finalizado".equalsIgnoreCase(estado)) {
-                            tieneProyectoActivo = true;
+                        int hayActiva = rsSec.getInt("hay_activa");
+                        int esMismaActiva = rsSec.getInt("es_misma_activa");
+                        
+                        if (estado != null) {
+                            estado = estado.trim();
+                            
+                            if ("7".equals(estado)) {
+                                // Cancelado -> Permite acceso
+                                tieneProyectoActivo = false;
+                            } else if (!"5".equals(estado)) {
+                                // En curso -> Bloquea
+                                tieneProyectoActivo = true;
+                            } else {
+                                // Finalizado
+                                if (hayActiva == 0) {
+                                    tieneProyectoActivo = true; // No hay convocatoria
+                                } else if (esMismaActiva > 0) {
+                                    tieneProyectoActivo = true; // Ya postuló a esta
+                                } else {
+                                    tieneProyectoActivo = false; // Nueva convocatoria disponible
+                                }
+                            }
                         }
                     }
                 }
