@@ -15,6 +15,7 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
     Set<String> estadosSet = new HashSet<>();
 
     List<Map<String, Object>> proyectosList = new ArrayList<>();
+    List<Map<String, Object>> historialList = new ArrayList<>();
     String mensajeError = null;
 
     try {
@@ -127,6 +128,46 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                     }
                 }
             }
+
+            // --- CONSULTA DE HISTORIAL (Server-Side) ---
+            String sqlHistorial = "SELECT " +
+                         "h.id_historial, " +
+                         "h.fecha_movimiento, " +
+                         "h.motivo_cambio, " +
+                         "p.titulo, " +
+                         "u.nombre, u.primer_apellido, " +
+                         "CASE WHEN h.estado_anterior ~ '^[0-9]+$' THEN (SELECT nombre_estado FROM estado_proyecto WHERE id_estado = h.estado_anterior::integer) ELSE h.estado_anterior END as nombre_anterior, " +
+                         "CASE WHEN h.estado_nuevo ~ '^[0-9]+$' THEN (SELECT nombre_estado FROM estado_proyecto WHERE id_estado = h.estado_nuevo::integer) ELSE h.estado_nuevo END as nombre_nuevo " +
+                         "FROM historial_estados_proyectos h " +
+                         "LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario " +
+                         "JOIN proyectos p ON h.id_proyecto = p.id_proyecto " +
+                         "ORDER BY h.fecha_movimiento DESC LIMIT 20";
+            
+            try (PreparedStatement stmtH = conn.prepareStatement(sqlHistorial);
+                 ResultSet rsH = stmtH.executeQuery()) {
+                 
+                SimpleDateFormat sdfH = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+                
+                while (rsH.next()) {
+                    Map<String, Object> h = new HashMap<>();
+                    h.put("id", rsH.getInt("id_historial"));
+                    
+                    Timestamp tsh = rsH.getTimestamp("fecha_movimiento");
+                    h.put("fecha", tsh != null ? sdfH.format(tsh) : "");
+                    
+                    h.put("proyecto", rsH.getString("titulo"));
+                    h.put("anterior", rsH.getString("nombre_anterior"));
+                    h.put("nuevo", rsH.getString("nombre_nuevo"));
+                    h.put("motivo", rsH.getString("motivo_cambio"));
+                    
+                    String n = rsH.getString("nombre");
+                    String a = rsH.getString("primer_apellido");
+                    h.put("usuario", (n != null ? n : "") + " " + (a != null ? a : ""));
+                    
+                    historialList.add(h);
+                }
+            }
+
     } catch (Exception e) {
         mensajeError = e.getMessage();
         e.printStackTrace();
@@ -314,10 +355,10 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                     <!-- Filtro por estado -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="fas fa-tasks mr-1"></i> Estado del Proyecto
+                            <i class="fas fa-tasks mr-1"></i> Estatus del Proyecto
                         </label>
                         <select id="estado" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent">
-                            <option value="">Todos los estados</option>
+                            <option value="">Todos los estatus</option>
                             <% for (String e : estadosSet) { %>
                                 <option value="<%= e %>"><%= e %></option>
                             <% } %>
@@ -418,7 +459,7 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">Título del Proyecto</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">Institución</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">Convocatoria</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estatus</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                         </tr>
@@ -428,6 +469,8 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                     </tbody>
                 </table>
             </div>
+
+            
             
             <!-- Vista cuadrícula -->
             <div id="vista-cuadricula" class="hidden p-6">
@@ -452,6 +495,70 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                 </div>
             </div>
         </div>
+
+        <!-- Bitácora de cambios de estado (Contenedor Separado) -->
+        <div class="mt-10 bg-white rounded-xl shadow-md overflow-hidden fade-in border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-history mr-2 text-[#7A1737]"></i> 
+                    Bitácora de Cambios de Estado
+                </h2>
+                <span class="text-xs text-gray-500">Últimos 20 movimientos</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proyecto</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cambio</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Motivo</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="tbody-historial">
+                        <% if (historialList.isEmpty()) { %>
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No hay registros de cambios recientes.</td>
+                            </tr>
+                        <% } else { 
+                            for (Map<String, Object> item : historialList) {
+                                String nuevoEstado = (String) item.get("nuevo");
+                                String claseEstado = "status-pendiente";
+                                if (nuevoEstado != null) {
+                                    String lower = nuevoEstado.toLowerCase();
+                                    if (lower.contains("aprobado")) claseEstado = "status-aprobado";
+                                    else if (lower.contains("rechazado")) claseEstado = "status-rechazado";
+                                    else if (lower.contains("revisión") || lower.contains("revision")) claseEstado = "status-revision";
+                                    else if (lower.contains("finalizado")) claseEstado = "status-finalizado";
+                                }
+                        %>
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 font-mono"><%= item.get("fecha") %></td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= item.get("proyecto") %></td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs text-gray-400"><%= item.get("anterior") != null ? item.get("anterior") : "-" %></span>
+                                        <i class="fas fa-long-arrow-alt-right text-gray-300"></i>
+                                        <span class="status-badge <%= claseEstado %>"><%= nuevoEstado %></span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600 italic">
+                                    <div class="max-w-xs truncate" title="<%= item.get("motivo") %>"><%= item.get("motivo") != null ? item.get("motivo") : "Sin motivo" %></div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <span class="inline-flex items-center">
+                                        <i class="fas fa-user-circle mr-2 text-[#B28854]"></i>
+                                        <%= item.get("usuario") %>
+                                    </span>
+                                </td>
+                            </tr>
+                        <%  } 
+                           } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <!-- Modal de detalles rápidos -->
@@ -473,7 +580,7 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
     <div id="modal-cambiar-estado" class="modal">
         <div class="modal-content" style="max-width: 500px;">
             <div class="bg-gradient-to-r from-[#B28854] to-[#d4b683] text-white p-4 rounded-t-lg flex justify-between items-center">
-                <h3 class="font-bold text-lg"><i class="fas fa-exchange-alt mr-2"></i>Cambiar Estado del Proyecto</h3>
+                <h3 class="font-bold text-lg"><i class="fas fa-exchange-alt mr-2"></i>Cambiar Estatus del Proyecto</h3>
                 <button onclick="cerrarModalEstado()" class="text-white hover:text-gray-200">
                     <i class="fas fa-times text-xl"></i>
                 </button>
@@ -483,14 +590,22 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                     <!-- Info del proyecto se carga dinámicamente -->
                 </div>
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado actual:</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Estatus actual:</label>
                     <span id="estado-actual" class="status-badge"></span>
                 </div>
                 <div class="mb-4">
-                    <label for="select-nuevo-estado" class="block text-sm font-medium text-gray-700 mb-2">Nuevo estado:</label>
+                    <label for="select-nuevo-estado" class="block text-sm font-medium text-gray-700 mb-2">Nuevo estatus:</label>
                     <select id="select-nuevo-estado" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent">
-                        <option value="">Cargando estados...</option>
+                        <option value="">Cargando estatus...</option>
                     </select>
+                </div>
+                <div class="mb-4">
+                    <label for="textarea-motivo" class="block text-sm font-medium text-gray-700 mb-2">
+                        Motivo del cambio (Obligatorio):
+                    </label>
+                    <textarea id="textarea-motivo" rows="3" 
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent"
+                              placeholder="Describa brevemente por qué se realiza este cambio..."></textarea>
                 </div>
                 <div class="flex justify-end space-x-3 mt-6">
                     <button onclick="cerrarModalEstado()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
@@ -604,7 +719,7 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                         <button onclick="verDetalles('\${proyecto.id}')" class="text-[#7A1737] hover:text-[#A8253C] mr-3" title="Ver Detalles">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button onclick="abrirModalCambiarEstado('\${proyecto.id}')" class="text-green-600 hover:text-green-800 mr-3" title="Cambiar Estado">
+                        <button onclick="abrirModalCambiarEstado('\${proyecto.id}')" class="text-green-600 hover:text-green-800 mr-3" title="Cambiar estatus">
                             <i class="fas fa-exchange-alt"></i>
                         </button>
                         <button onclick="descargarProyecto('\${proyecto.id}')" class="text-[#B28854] hover:text-[#d4b683] mr-3" title="Descargar">
@@ -663,7 +778,7 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                                 <button onclick="verDetalles('\${proyecto.id}')" class="text-[#7A1737] hover:text-[#A8253C] text-sm" title="Ver Detalles">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button onclick="abrirModalCambiarEstado('\${proyecto.id}')" class="text-green-600 hover:text-green-800 text-sm" title="Cambiar Estado">
+                                <button onclick="abrirModalCambiarEstado('\${proyecto.id}')" class="text-green-600 hover:text-green-800 text-sm" title="Cambiar estatus">
                                     <i class="fas fa-exchange-alt"></i>
                                 </button>
                                 <button onclick="descargarProyecto('\${proyecto.id}')" class="text-[#B28854] hover:text-[#d4b683] text-sm" title="Descargar">
@@ -887,7 +1002,7 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                     <div class="border-t pt-4 mt-4">
                         <div class="flex justify-between items-center">
                             <div>
-                                <p class="text-xs text-gray-500">Estado Actual</p>
+                                <p class="text-xs text-gray-500">Estatus Actual</p>
                                 <span class="status-badge 
 \${getClaseEstado(proyecto.estado)}">
 \${proyecto.estado}</span>
@@ -911,7 +1026,7 @@ response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+ja
                             <button onclick="cerrarModal(); abrirModalCambiarEstado('\${proyecto.id}')" 
                                class="bg-[#B28854] text-white py-3 px-4 rounded-lg text-center hover:bg-[#d4b683] transition flex items-center justify-center">
                                 <i class="fas fa-exchange-alt mr-2"></i>
-                                Cambiar estado del proyecto
+                                Cambiar estatus del proyecto
                             </button>
                         </div>
                     </div>
@@ -1102,9 +1217,15 @@ tipo === 'info' ? 'bg-blue-500 text-white' :
         // Función para confirmar cambio de estado
         async function confirmarCambioEstado() {
             const nuevoEstadoId = document.getElementById('select-nuevo-estado').value;
+            const motivo = document.getElementById('textarea-motivo').value;
 
             if (!nuevoEstadoId) {
                 mostrarNotificacion('Seleccione un estado', 'info');
+                return;
+            }
+            
+            if (!motivo || motivo.trim() === "") {
+                mostrarNotificacion('El motivo del cambio es obligatorio', 'info');
                 return;
             }
 
@@ -1125,7 +1246,7 @@ tipo === 'info' ? 'bg-blue-500 text-white' :
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `action=cambiarEstado&idProyecto=\${proyectoSeleccionadoId}&nuevoEstado=\${nuevoEstadoId}`
+                    body: `action=cambiarEstado&idProyecto=\${proyectoSeleccionadoId}&nuevoEstado=\${nuevoEstadoId}&motivo=\${encodeURIComponent(motivo)}`
                 });
 
                 const data = await response.json();
