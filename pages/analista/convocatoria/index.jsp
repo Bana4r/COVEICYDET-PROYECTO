@@ -60,6 +60,7 @@
                     conv.put("fechaInicioRaw", fechaInicio != null ? fechaInicio.toString() : "");
                     conv.put("fechaCierreRaw", fechaCierre != null ? fechaCierre.toString() : "");
                     
+                    
                     // Estado
                     String estadoNombre = rs.getString("nombre_estado");
                     int estadoId = rs.getInt("estado");
@@ -322,6 +323,24 @@
                             </div>
                         </div>
 
+                        <div>
+                            <h1 class="text-sm text-gray-500 mb-2">
+                                <spam class="text-red-500">*</spam> Presupuestos de la convocatoria
+                            </h1>
+
+                            <div class="flex items-start gap-2">
+                                <button type="button" id="btn-add-presupuesto" onclick="agregarPresupuesto()" class="px-4 py-3 bg-[#7A1737] text-white rounded-lg flex items-center justify-center"> + </button>
+
+                                <div id="presupuestos-list" class="flex-1 space-y-2">
+                                    <div class="flex items-center gap-2 presupuesto-row">
+                                        <input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">
+                                        <input name="monto[]" type="number" step="0.01" class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Monto">
+                                        <button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Estado -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -438,7 +457,54 @@
                     document.getElementById('fecha-inicio').value = conv.fechaInicio;
                     document.getElementById('fecha-cierre').value = conv.fechaCierre;
                     document.getElementById('estado-convocatoria').value = conv.estado;
-                    
+
+                    // Poblar presupuestos
+                    try {
+                        const list = document.getElementById('presupuestos-list');
+                        list.innerHTML = '';
+                        const presup = conv.presupuestos || [];
+                        if (Array.isArray(presup) && presup.length > 0) {
+                            presup.slice(0,5).forEach(p => {
+                                const row = document.createElement('div');
+                                row.className = 'flex items-center gap-2 presupuesto-row';
+                                const tipo = document.createElement('input');
+                                tipo.name = 'tipo_presupuesto[]';
+                                tipo.type = 'text';
+                                tipo.value = p.nombre || '';
+                                tipo.className = 'flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent';
+                                tipo.placeholder = 'Ej: Nacional, Internacional, etc.';
+
+                                const monto = document.createElement('input');
+                                monto.name = 'monto[]';
+                                monto.type = 'number';
+                                monto.step = '0.01';
+                                monto.value = p.monto || '';
+                                monto.className = 'w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent';
+                                monto.placeholder = 'Monto';
+
+                                const btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'text-red-600 px-3 py-2';
+                                btn.textContent = '×';
+                                btn.addEventListener('click', function(){ removerPresupuesto(this); });
+
+                                row.appendChild(tipo);
+                                row.appendChild(monto);
+                                row.appendChild(btn);
+                                list.appendChild(row);
+                            });
+                        } else {
+                            // mantener una fila vacía si no hay presupuestos
+                            const row = document.createElement('div');
+                            row.className = 'flex items-center gap-2 presupuesto-row';
+                            row.innerHTML = '<input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">'
+                                + '<input name="monto[]" type="number" step="0.01" class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Monto">'
+                                + '<button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>';
+                            list.appendChild(row);
+                        }
+                        updateRemoveButtons();
+                    } catch (e) { console.error(e); }
+
                     document.getElementById('modal-convocatoria').style.display = 'flex';
                 } else {
                     mostrarNotificacion(data.error || 'Error al cargar datos', 'error');
@@ -500,6 +566,52 @@
                 setTimeout(() => notification.remove(), 300);
             }, 3000);
         }
+
+        // Presupuestos dinámicos: agregar/remover hasta 5
+        function agregarPresupuesto() {
+            const list = document.getElementById('presupuestos-list');
+            const count = list.querySelectorAll('.presupuesto-row').length;
+            if (count >= 5) {
+                mostrarNotificacion('Máximo 5 presupuestos permitidos', 'error');
+                return;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 presupuesto-row';
+            row.innerHTML =
+                '<input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">' +
+                '<input name="monto[]" type="number" step="0.01" class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Monto">' +
+                '<button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>';
+
+            list.appendChild(row);
+            updateRemoveButtons();
+        }
+
+        function removerPresupuesto(btn) {
+            const list = document.getElementById('presupuestos-list');
+            const rows = list.querySelectorAll('.presupuesto-row');
+            if (rows.length <= 1) {
+                mostrarNotificacion('Debe existir al menos un presupuesto', 'error');
+                return;
+            }
+            btn.closest('.presupuesto-row').remove();
+            updateRemoveButtons();
+        }
+
+        function updateRemoveButtons() {
+            const rows = document.querySelectorAll('#presupuestos-list .presupuesto-row');
+            rows.forEach((r) => {
+                const btn = r.querySelector('button[onclick="removerPresupuesto(this)"]');
+                if (btn) btn.style.display = rows.length > 1 ? 'inline-flex' : 'none';
+            });
+        }
+
+        // Inicializar estado de botones de remover al abrir el modal
+        document.getElementById('btn-add-presupuesto').addEventListener('click', function() { /* placeholder to ensure exists */ });
+        // Ejecutar al cargar el script
+        (function(){
+            try { updateRemoveButtons(); } catch(e){}
+        })();
 
         // Cerrar modal con Escape o clic fuera
         document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModalConvocatoria(); });
