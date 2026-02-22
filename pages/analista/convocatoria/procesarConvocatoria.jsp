@@ -34,7 +34,7 @@
                 stmt.setInt(2, estadoId);
                 stmt.setDate(3, java.sql.Date.valueOf(fechaInicio));
                 stmt.setDate(4, java.sql.Date.valueOf(fechaCierre));
-                
+
                 int filas = stmt.executeUpdate();
                 if (filas > 0) {
                     ResultSet rs = stmt.getGeneratedKeys();
@@ -42,6 +42,40 @@
                     if (rs.next()) {
                         nuevoId = rs.getInt(1);
                     }
+
+                    // Insertar presupuestos relacionados (si vienen en el formulario)
+                    String[] tipos = request.getParameterValues("tipo_presupuesto[]");
+                    if (tipos == null) tipos = request.getParameterValues("tipo_presupuesto");
+                    String[] montos = request.getParameterValues("monto[]");
+                    if (montos == null) montos = request.getParameterValues("monto");
+                    String[] descripciones = request.getParameterValues("descripcion_presupuesto[]");
+                    if (descripciones == null) descripciones = request.getParameterValues("descripcion_presupuesto");
+
+                    if (tipos != null && montos != null) {
+                        String sqlPres = "INSERT INTO presupuesto_tipo (nombre, limite_presupuesto, id_convocatoria, descripcion) VALUES (?, ?, ?, ?)";
+                        try (PreparedStatement pstPres = conn.prepareStatement(sqlPres)) {
+                            int max = Math.min(5, Math.min(tipos.length, montos.length));
+                            for (int i = 0; i < max; i++) {
+                                String t = tipos[i] != null ? tipos[i].trim() : "";
+                                String m = montos[i] != null ? montos[i].trim() : "";
+                                String d = (descripciones != null && i < descripciones.length && descripciones[i] != null) ? descripciones[i].trim() : "";
+                                if (t.isEmpty()) continue;
+                                try {
+                                    java.math.BigDecimal bd = new java.math.BigDecimal(m.replace("\u00A0", "")).setScale(2, java.math.RoundingMode.HALF_UP);
+                                    pstPres.setString(1, t);
+                                    pstPres.setBigDecimal(2, bd);
+                                    pstPres.setInt(3, nuevoId);
+                                    pstPres.setString(4, d);
+                                    pstPres.addBatch();
+                                } catch (Exception ex) {
+                                    // si monto inválido, saltar esa fila
+                                    continue;
+                                }
+                            }
+                            pstPres.executeBatch();
+                        }
+                    }
+
                     json.append("{\"success\":true,\"mensaje\":\"Convocatoria creada exitosamente\",\"id\":").append(nuevoId).append("}");
                 } else {
                     json.append("{\"success\":false,\"error\":\"No se pudo crear la convocatoria\"}");
@@ -67,9 +101,47 @@
                 stmt.setDate(3, java.sql.Date.valueOf(fechaInicio));
                 stmt.setDate(4, java.sql.Date.valueOf(fechaCierre));
                 stmt.setInt(5, id);
-                
+
                 int filas = stmt.executeUpdate();
                 if (filas > 0) {
+                    // Actualizar presupuestos: eliminar existentes y reinsertar los enviados
+                    String sqlDel = "DELETE FROM presupuesto_tipo WHERE id_convocatoria = ?";
+                    try (PreparedStatement pstDel = conn.prepareStatement(sqlDel)) {
+                        pstDel.setInt(1, id);
+                        pstDel.executeUpdate();
+                    }
+
+                    String[] tipos = request.getParameterValues("tipo_presupuesto[]");
+                    if (tipos == null) tipos = request.getParameterValues("tipo_presupuesto");
+                    String[] montos = request.getParameterValues("monto[]");
+                    if (montos == null) montos = request.getParameterValues("monto");
+                    String[] descripciones = request.getParameterValues("descripcion_presupuesto[]");
+                    if (descripciones == null) descripciones = request.getParameterValues("descripcion_presupuesto");
+
+                    if (tipos != null && montos != null) {
+                        String sqlPres = "INSERT INTO presupuesto_tipo (nombre, limite_presupuesto, id_convocatoria, descripcion) VALUES (?, ?, ?, ?)";
+                        try (PreparedStatement pstPres = conn.prepareStatement(sqlPres)) {
+                            int max = Math.min(5, Math.min(tipos.length, montos.length));
+                            for (int i = 0; i < max; i++) {
+                                String t = tipos[i] != null ? tipos[i].trim() : "";
+                                String m = montos[i] != null ? montos[i].trim() : "";
+                                String d = (descripciones != null && i < descripciones.length && descripciones[i] != null) ? descripciones[i].trim() : "";
+                                if (t.isEmpty()) continue;
+                                try {
+                                    java.math.BigDecimal bd = new java.math.BigDecimal(m.replace("\u00A0", "")).setScale(2, java.math.RoundingMode.HALF_UP);
+                                    pstPres.setString(1, t);
+                                    pstPres.setBigDecimal(2, bd);
+                                    pstPres.setInt(3, id);
+                                    pstPres.setString(4, d);
+                                    pstPres.addBatch();
+                                } catch (Exception ex) {
+                                    continue;
+                                }
+                            }
+                            pstPres.executeBatch();
+                        }
+                    }
+
                     json.append("{\"success\":true,\"mensaje\":\"Convocatoria actualizada exitosamente\"}");
                 } else {
                     json.append("{\"success\":false,\"error\":\"No se encontro la convocatoria\"}");
@@ -137,6 +209,36 @@
                     json.append("\"fechaInicio\":\"").append(fechaIni).append("\",");
                     json.append("\"fechaCierre\":\"").append(fechaCie).append("\",");
                     json.append("\"estado\":\"").append(estadoNombre.toLowerCase()).append("\"");
+                    // Agregar presupuestos asociados
+                    String sqlPres = "SELECT nombre, limite_presupuesto, descripcion FROM presupuesto_tipo WHERE id_convocatoria = ? ORDER BY id_presupuesto";
+                    try (PreparedStatement pstPres = conn.prepareStatement(sqlPres)) {
+                        pstPres.setInt(1, rs.getInt("id_convocatoria"));
+                        ResultSet rsPres = pstPres.executeQuery();
+                        StringBuilder presBuf = new StringBuilder();
+                        presBuf.append(",\"presupuestos\":[");
+                        boolean firstPres = true;
+                        while (rsPres.next()) {
+                            if (!firstPres) presBuf.append(',');
+                            firstPres = false;
+                            String nom = rsPres.getString("nombre");
+                            if (nom != null) {
+                                nom = nom.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+                            } else nom = "";
+                            String lim = rsPres.getBigDecimal("limite_presupuesto") != null ? rsPres.getBigDecimal("limite_presupuesto").toString() : "0";
+                            String desc = rsPres.getString("descripcion");
+                            if (desc != null) {
+                                desc = desc.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+                            } else desc = "";
+                            presBuf.append('{');
+                            presBuf.append("\"nombre\":\"").append(nom).append("\",");
+                            presBuf.append("\"monto\":\"").append(lim).append("\",");
+                            presBuf.append("\"descripcion\":\"").append(desc).append("\"");
+                            presBuf.append('}');
+                        }
+                        presBuf.append(']');
+                        json.append(presBuf.toString());
+                    }
+
                     json.append("}}");
                 } else {
                     json.append("{\"success\":false,\"error\":\"Convocatoria no encontrada\"}");

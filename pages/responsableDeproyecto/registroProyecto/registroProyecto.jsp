@@ -3,16 +3,9 @@
 <%@ page import="java.util.*" %>
 <%@ page import="java.util.regex.*" %>
 
-<% if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) { String n=request.getRequestURI()+(request.getQueryString()!=null?("?"+request.getQueryString()):""); response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+java.net.URLEncoder.encode(n,"UTF-8")); return; } %>
-<%!
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/proyectos";
-    private static final String DB_USER = "dbusr25";
-    private static final String DB_PASSWORD = "mxToro24000Chocolate";
+<%@ include file="/WEB-INF/conexion.jsp" %>
 
-    private static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-    }
-%>
+<% if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) { String n=request.getRequestURI()+(request.getQueryString()!=null?("?"+request.getQueryString()):""); response.sendRedirect(request.getContextPath()+"/pages/login/login.jsp?next="+java.net.URLEncoder.encode(n,"UTF-8")); return; } %>
 
 <%@ include file="/WEB-INF/seguridadProyecto.jsp" %>
 
@@ -109,8 +102,7 @@
                             </div>
                             <div id="institucion_dropdown" class="hidden absolute z-20 w-full bg-white border border-gray-300 mt-1 max-h-60 overflow-y-auto rounded-md shadow-lg">
                                 <%
-                                    try (Connection conn = getConnection();
-                                        Statement stmt = conn.createStatement();
+                                    try (Statement stmt = conn.createStatement();
                                         ResultSet rs = stmt.executeQuery("SELECT institucion FROM instituciones ORDER BY institucion ASC")) {
                                         while (rs.next()) {
                                             String inst = rs.getString("institucion");
@@ -267,9 +259,9 @@
                         <select id="convocatoria" name="convocatoria" required class="floating-input">
                             <option value="">Seleccione una convocatoria</option>
                             <%
-                                try (Connection conn = getConnection();
-                                     Statement stmt = conn.createStatement();
-                                     ResultSet rs = stmt.executeQuery("SELECT id_convocatoria, nombre_convocatoria FROM convocatoria ORDER BY nombre_convocatoria")) {
+                                try (PreparedStatement pstConv = conn.prepareStatement(
+                                        "SELECT id_convocatoria, nombre_convocatoria FROM convocatoria WHERE estado = 2 ORDER BY nombre_convocatoria");
+                                     ResultSet rs = pstConv.executeQuery()) {
                                     while(rs.next()) {
                             %>
                                         <option value="<%= rs.getInt("id_convocatoria") %>"><%= rs.getString("nombre_convocatoria") %></option>

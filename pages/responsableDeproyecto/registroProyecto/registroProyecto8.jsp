@@ -68,11 +68,10 @@
             </div>
             
             <form id="formPagina8" class="p-8 space-y-8" action="#" method="post">
-                <!-- una lista con los topes maximos del total de las partidas 300000 para ciencia basica y 500000 para ciencia aplicada -->
-                <h2 class="text-lg font-semibold text-gray-800">Selecciona el tipo de ciencia del proyecto:</h2>
-                <select id="tipoProyecto" name="tipoProyecto" class="mb-6 border border-gray-300 rounded-md shadow-sm p-2">
-                    <option value="ciencia_basica">Ciencia Básica y de Frontera</option>
-                    <option value="ciencia_aplicada">Ciencia Aplicada</option>
+                <!-- Tipo de presupuesto dinámico desde BD -->
+                <h2 class="text-lg font-semibold text-gray-800">Selecciona el tipo de presupuesto:</h2>
+                <select id="tipoProyecto" name="tipoProyecto" class="mb-6 border border-gray-300 rounded-md shadow-sm p-2 w-full md:w-1/2">
+                    <option value="">Cargando tipos de presupuesto...</option>
                 </select>
 
                 <div id="indicadorLimiteGlobal" class="p-4 rounded-lg mb-6 border transition-colors duration-200">
@@ -375,14 +374,108 @@
 
     <script>
         // ========== CONFIGURACIÓN INICIAL ==========
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Inicializando formulario...');
+        function inicializarFormulario() {
+            console.log('Inicializando formulario página 8...');
+            
+            // Cargar tipos de presupuesto desde la BD
+            cargarTiposPresupuesto();
+            
+            // Configurar eventos y UI
             setupCalculos();
             setupContadoresPalabras();
             setupFormatoMoneda();
+            setupTipoProyectoListener();
             cargarBorrador();
             setupNavegacion();
-        });
+        }
+        
+        // Ejecutar cuando el DOM esté listo (compatible con estructura HTML actual)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', inicializarFormulario);
+        } else {
+            inicializarFormulario();
+        }
+
+        // ========== CARGA DINÁMICA DE TIPOS DE PRESUPUESTO ==========
+        async function cargarTiposPresupuesto() {
+            const select = document.getElementById('tipoProyecto');
+            if (!select) {
+                console.error('No se encontró el elemento tipoProyecto');
+                return;
+            }
+            
+            select.innerHTML = '<option value="">Cargando...</option>';
+            
+            // Obtener ID de convocatoria desde localStorage (guardado en Página 1)
+            const datosP1 = localStorage.getItem('proyecto_borrador_pagina1');
+            console.log('[DEBUG P8] Datos LocalStorage P1:', datosP1);
+            
+            if (!datosP1) {
+                select.innerHTML = '<option value="">⚠️ Complete primero el Paso 1</option>';
+                console.warn('[DEBUG P8] No hay datos de página 1 en localStorage');
+                return;
+            }
+            
+            let idConvocatoria = null;
+            try {
+                const objetoP1 = JSON.parse(datosP1);
+                idConvocatoria = objetoP1.proyecto?.convocatoria_id || objetoP1.proyecto?.convocatoria;
+                console.log('[DEBUG P8] ID Convocatoria:', idConvocatoria);
+            } catch (e) {
+                console.error('[DEBUG P8] Error parseando JSON:', e);
+                select.innerHTML = '<option value="">⚠️ Error en datos del Paso 1</option>';
+                return;
+            }
+            
+            if (!idConvocatoria || String(idConvocatoria).trim() === '') {
+                select.innerHTML = '<option value="">⚠️ Seleccione convocatoria en Paso 1</option>';
+                return;
+            }
+            
+            // Consultar endpoint
+            try {
+                const url = 'getTiposPresupuesto.jsp?id_convocatoria=' + encodeURIComponent(idConvocatoria);
+                console.log('[DEBUG P8] Consultando:', url);
+                
+                const response = await fetch(url);
+                const textoRespuesta = await response.text();
+                console.log('[DEBUG P8] Respuesta:', textoRespuesta);
+                
+                if (!response.ok) {
+                    throw new Error('Error del servidor: ' + response.status);
+                }
+                
+                let tipos;
+                try {
+                    tipos = JSON.parse(textoRespuesta);
+                } catch (e) {
+                    console.error('[DEBUG P8] Respuesta no es JSON válido:', textoRespuesta);
+                    throw new Error('Respuesta inválida del servidor');
+                }
+                
+                select.innerHTML = '';
+                
+                if (!Array.isArray(tipos) || tipos.length === 0) {
+                    select.innerHTML = '<option value="">No hay tipos de presupuesto configurados</option>';
+                    return;
+                }
+                
+                tipos.forEach(tipo => {
+                    const option = document.createElement('option');
+                    option.value = tipo.id;
+                    option.text = tipo.nombre;
+                    option.setAttribute('data-limite', tipo.limite);
+                    select.add(option);
+                });
+                
+                // Actualizar indicadores con el primer tipo seleccionado
+                actualizarIndicadorGlobal();
+                
+            } catch (error) {
+                console.error('[DEBUG P8] Error cargando tipos:', error);
+                select.innerHTML = '<option value="">Error de conexión</option>';
+            }
+        }
 
         // ========== FORMATO DE MONEDA ==========
         function formatearMoneda(valor) {
@@ -520,12 +613,17 @@
             actualizarIndicadorGlobal();
         }
 
-        // ========== VALIDACIÓN DE LÍMITE GLOBAL ==========
+        // ========== VALIDACIÓN DE LÍMITE GLOBAL (DINÁMICO DESDE BD) ==========
         function actualizarIndicadorGlobal() {
-            const tipo = document.getElementById('tipoProyecto').value;
+            const select = document.getElementById('tipoProyecto');
+            if (!select || select.selectedIndex < 0 || !select.value) return;
+            
+            const opcionSeleccionada = select.options[select.selectedIndex];
+            const limite = parseFloat(opcionSeleccionada.getAttribute('data-limite')) || 0;
+            const nombreTipo = opcionSeleccionada.text;
+            
             const total = extraerNumero(document.getElementById('totalPresupuesto').value);
-            const limite = tipo === 'ciencia_basica' ? 300000 : 500000;
-            const porcentaje = (total / limite) * 100;
+            const porcentaje = limite > 0 ? (total / limite) * 100 : 0;
             
             const barra = document.getElementById('barraProgresoGlobal');
             const texto = document.getElementById('textoLimiteGlobal');
@@ -534,7 +632,6 @@
 
             if (!barra || !texto || !contenedor) return;
 
-            const nombreTipo = tipo === 'ciencia_basica' ? 'Ciencia Básica' : 'Ciencia Aplicada';
             texto.textContent = formatearMoneda(total) + ' / ' + formatearMoneda(limite) + ' (' + porcentaje.toFixed(1) + '%) - ' + nombreTipo;
             barra.style.width = Math.min(porcentaje, 100) + '%';
 
@@ -645,12 +742,19 @@
 
         // ========== GUARDAR Y CARGAR ==========
         function guardarBorrador(formId, pageKey, targetBtn) {
-            // 1. Validar Límite Global (Ciencia Básica vs Aplicada)
-            const tipo = document.getElementById('tipoProyecto').value;
-            const total = extraerNumero(document.getElementById('totalPresupuesto').value);
-            const limite = tipo === 'ciencia_basica' ? 300000 : 500000;
+            // 1. Validar Límite Global (Dinámico desde BD)
+            const select = document.getElementById('tipoProyecto');
+            if (!select.value) {
+                mostrarMensaje('Debe seleccionar un tipo de presupuesto', 'error', targetBtn);
+                return false;
+            }
             
-            if (total > limite) {
+            const opcionSeleccionada = select.options[select.selectedIndex];
+            const limite = parseFloat(opcionSeleccionada?.getAttribute('data-limite')) || 0;
+            const nombreTipo = opcionSeleccionada ? opcionSeleccionada.text : 'Desconocido';
+            const total = extraerNumero(document.getElementById('totalPresupuesto').value);
+            
+            if (limite > 0 && total > limite) {
                 mostrarMensaje('No se puede guardar: El presupuesto (' + formatearMoneda(total) + ') excede el límite de ' + formatearMoneda(limite), 'error', targetBtn);
                 const indicador = document.getElementById('indicadorLimiteGlobal');
                 if(indicador) indicador.scrollIntoView({behavior: 'smooth', block: 'center'});
@@ -955,24 +1059,31 @@
             }
         }
 
-        //lanzar una alerta si se excede el limite de la ciencia seleccionada
-        document.getElementById('tipoProyecto').addEventListener('change', function() {
-            // Recalcular validaciones visuales al cambiar el tipo
-            calcularTodo();
+        // Listener para cambio de tipo de presupuesto (dinámico)
+        function setupTipoProyectoListener() {
+            const select = document.getElementById('tipoProyecto');
+            if (!select) return;
             
-            // Mostrar notificación toast informativa
-            const tipo = this.value;
-            const limite = tipo === 'ciencia_basica' ? 300000 : 500000;
-            const nombre = tipo === 'ciencia_basica' ? 'Ciencia Básica y de Frontera' : 'Ciencia Aplicada';
-            
-            // Verificar si ya excede con el nuevo límite
-            const total = extraerNumero(document.getElementById('totalPresupuesto').value);
-            if (total > limite) {
-                mostrarMensaje('Al cambiar a ' + nombre + ', el presupuesto actual excede el límite de ' + formatearMoneda(limite), 'error', this);
-            } else {
-                mostrarMensaje('Límite actualizado para ' + nombre + ': ' + formatearMoneda(limite), 'info', this);
-            }
-        });
+            select.addEventListener('change', function() {
+                // Recalcular validaciones visuales al cambiar el tipo
+                calcularTodo();
+                
+                // Mostrar notificación toast informativa
+                const opcion = this.options[this.selectedIndex];
+                if (!opcion || !opcion.value) return;
+                
+                const limite = parseFloat(opcion.getAttribute('data-limite')) || 0;
+                const nombre = opcion.text;
+                
+                // Verificar si ya excede con el nuevo límite
+                const total = extraerNumero(document.getElementById('totalPresupuesto').value);
+                if (limite > 0 && total > limite) {
+                    mostrarMensaje('El presupuesto actual excede el límite de ' + formatearMoneda(limite) + ' para ' + nombre, 'error', this);
+                } else if (limite > 0) {
+                    mostrarMensaje('Límite para ' + nombre + ': ' + formatearMoneda(limite), 'info', this);
+                }
+            });
+        }
     </script>
     <%@ include file="/footer.jsp" %>
 </body>

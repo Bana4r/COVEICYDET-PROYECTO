@@ -15,51 +15,41 @@
             <th>Edad</th>
         </tr>
         <%
-            Connection conn = null;
             Statement stmt = null;
             ResultSet rs = null;
 
-          
-            try {
-                Class.forName("org.postgresql.Driver");
-            } catch (ClassNotFoundException e) {
-                out.println("Error al cargar el driver JDBC: " + e.getMessage());
-                return;
-            }
+            %> <%@ include file="/WEB-INF/conexion.jsp" %> <%
 
-           
-            String url = "jdbc:postgresql://localhost:5432/proyectos";
-            String user = "dbusr25";
-            String password = "mxToro24000Chocolate";
-
-            try {
-                conn = DriverManager.getConnection(url, user, password);
-                stmt = conn.createStatement();
-                String sql = "SELECT * FROM test"; 
-                rs = stmt.executeQuery(sql);
-
-                while (rs.next()) {
-                    int id = rs.getInt("dni");
-                    String nombre = rs.getString("nombre");
-                    int edad = rs.getInt("edad");
-
-                    out.println("<tr>");
-                    out.println("<td>" + id     + "</td>");
-                    out.println("<td>" + nombre + "</td>");
-                    out.println("<td>" + edad   + "</td>");
-                    out.println("</tr>");
-                }
-            } catch (SQLException e) {
-                out.println("Error de base de datos: " + e.getMessage());
-            } finally {
-               
+            if (conn != null) {
                 try {
-                    if (rs != null) rs.close();
-                    if (stmt != null) stmt.close();
-                    if (conn != null) conn.close();
+                    stmt = conn.createStatement();
+                    String sql = "SELECT * FROM test"; 
+                    rs = stmt.executeQuery(sql);
+
+                    while (rs.next()) {
+                        int id = rs.getInt("dni");
+                        String nombre = rs.getString("nombre");
+                        int edad = rs.getInt("edad");
+
+                        out.println("<tr>");
+                        out.println("<td>" + id     + "</td>");
+                        out.println("<td>" + nombre + "</td>");
+                        out.println("<td>" + edad   + "</td>");
+                        out.println("</tr>");
+                    }
                 } catch (SQLException e) {
-                    out.println("Error al cerrar los recursos: " + e.getMessage());
+                    out.println("Error de base de datos: " + e.getMessage());
+                } finally {
+                    try {
+                        if (rs != null) rs.close();
+                        if (stmt != null) stmt.close();
+                        if (conn != null) conn.close();
+                    } catch (SQLException e) {
+                        out.println("Error al cerrar los recursos: " + e.getMessage());
+                    }
                 }
+            } else {
+                out.println("Error de conexión: " + dbError);
             }
         %>
     </table>

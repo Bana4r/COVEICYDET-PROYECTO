@@ -146,6 +146,15 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="flex items-center justify-center mt-6 col-span-1 md:col-span-2">
+                                    <div class="w-8 h-8 bg-[#B28854] text-white rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                                        <span class="font-bold text-sm">7</span>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-800">Sube el documento en la siguiente pagina del formulario</p>
+                                        <p class="text-sm text-gray-500 italic">Recuerda que el documento debe estar firmado por el representante tecnico del proyecto</p>
+                                    </div>
+                            </div>
                         </div>
                     </section>
 

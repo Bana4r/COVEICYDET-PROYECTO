@@ -10,12 +10,9 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
 } 
 %>
 
+<%@ include file="/WEB-INF/conexion.jsp" %>
+
 <%!
-    // Configuración de la base de datos
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/proyectos";
-    private static final String DB_USER = "dbusr25";
-    private static final String DB_PASSWORD = "mxToro24000Chocolate";
-    
     // ==========================================
     // CLASE ROBUSTA PARA PARSEO DE JSON (SIN LIBRERÍAS EXTERNAS)
     // ==========================================
@@ -223,10 +220,14 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
         Map<String, Object> p8PartidaObj = getMap(pagina8, "partida");
         List<Object> p8PartidasList = getList(p8PartidaObj, "partidas");
         
-        // Conectar a la base de datos
-        Class.forName("org.postgresql.Driver");
-        
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+        // List<Object> p8PartidasList = getList(p8PartidaObj, "partidas"); // Ya obtenido arriba
+
+        // Verificar conexión
+        if (conn == null) {
+            throw new SQLException("No se pudo establecer conexión con la base de datos.");
+        }
+
+        try {
             conn.setAutoCommit(false);
             
             try {
@@ -240,8 +241,8 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
                     "objetivos_general, objetivos_especificos, factores_riesgo_mitigacion, " +
                     "resumen_metodologia, resultados_esperados, " +
                     "impacto_social, impacto_ambiental, impacto_economico, impacto_cientificoTecnologico, " +
-                    "doc_extenso" +
-                    ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "doc_extenso, estado_proyecto" +
+                    ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                     "RETURNING id_proyecto";
                 
                 try (PreparedStatement stmt = conn.prepareStatement(sqlProyecto)) {
@@ -282,7 +283,10 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
                     String docExtenso = getStr(pagina10, "doc_extenso");
                     if(docExtenso.isEmpty()) docExtenso = getStr(pagina9, "doc_extenso");
                     stmt.setString(24, docExtenso);
-                    
+
+                    // Estado del proyecto: "Enviado" (valor 2 según la tabla de estados)
+                    stmt.setString(25, "2");
+
                     ResultSet rs = stmt.executeQuery();
                     if (rs.next()) {
                         proyectoId = rs.getInt("id_proyecto");
@@ -525,16 +529,17 @@ if (!"responsable".equals(String.valueOf(session.getAttribute("rol")))) {
                 tipoMensaje = "success";
                 
             } catch (Exception e) {
-                conn.rollback();
+                if (conn != null) conn.rollback();
                 throw e;
             }
+        } finally {
+             // Opcional: devolver autocommit a true o cerrar si es necesario
+             if (conn != null) { 
+                 try { conn.setAutoCommit(true); conn.close(); } catch(Exception e){} 
+             }
         }
 
         
-    } catch (ClassNotFoundException e) {
-        mensaje = "Error: Driver de PostgreSQL no encontrado";
-        tipoMensaje = "error";
-        e.printStackTrace();
     } catch (SQLException e) {
         mensaje = "Error de base de datos: " + e.getMessage();
         tipoMensaje = "error";
