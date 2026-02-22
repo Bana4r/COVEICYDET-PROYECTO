@@ -332,10 +332,13 @@
                                 <button type="button" id="btn-add-presupuesto" onclick="agregarPresupuesto()" class="px-4 py-3 bg-[#7A1737] text-white rounded-lg flex items-center justify-center"> + </button>
 
                                 <div id="presupuestos-list" class="flex-1 space-y-2">
-                                    <div class="flex items-center gap-2 presupuesto-row">
-                                        <input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">
-                                        <input name="monto[]" type="number" step="0.01" class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Monto">
-                                        <button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>
+                                    <div class="flex flex-col gap-2 presupuesto-row border border-gray-200 rounded-lg p-3">
+                                        <div class="flex items-center gap-2">
+                                            <input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">
+                                            <input name="monto[]" type="number" step="0.01" class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Monto">
+                                            <button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>
+                                        </div>
+                                        <textarea name="descripcion_presupuesto[]" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent text-sm" placeholder="Descripción de la modalidad..."></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -466,7 +469,11 @@
                         if (Array.isArray(presup) && presup.length > 0) {
                             presup.slice(0,5).forEach(p => {
                                 const row = document.createElement('div');
-                                row.className = 'flex items-center gap-2 presupuesto-row';
+                                row.className = 'flex flex-col gap-2 presupuesto-row border border-gray-200 rounded-lg p-3';
+                                
+                                const topRow = document.createElement('div');
+                                topRow.className = 'flex items-center gap-2';
+                                
                                 const tipo = document.createElement('input');
                                 tipo.name = 'tipo_presupuesto[]';
                                 tipo.type = 'text';
@@ -488,18 +495,31 @@
                                 btn.textContent = '×';
                                 btn.addEventListener('click', function(){ removerPresupuesto(this); });
 
-                                row.appendChild(tipo);
-                                row.appendChild(monto);
-                                row.appendChild(btn);
+                                topRow.appendChild(tipo);
+                                topRow.appendChild(monto);
+                                topRow.appendChild(btn);
+                                
+                                const desc = document.createElement('textarea');
+                                desc.name = 'descripcion_presupuesto[]';
+                                desc.rows = 2;
+                                desc.value = p.descripcion || '';
+                                desc.className = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent text-sm';
+                                desc.placeholder = 'Descripción de la modalidad...';
+                                
+                                row.appendChild(topRow);
+                                row.appendChild(desc);
                                 list.appendChild(row);
                             });
                         } else {
                             // mantener una fila vacía si no hay presupuestos
                             const row = document.createElement('div');
-                            row.className = 'flex items-center gap-2 presupuesto-row';
-                            row.innerHTML = '<input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">'
+                            row.className = 'flex flex-col gap-2 presupuesto-row border border-gray-200 rounded-lg p-3';
+                            row.innerHTML = '<div class="flex items-center gap-2">'
+                                + '<input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">'
                                 + '<input name="monto[]" type="number" step="0.01" class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Monto">'
-                                + '<button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>';
+                                + '<button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>'
+                                + '</div>'
+                                + '<textarea name="descripcion_presupuesto[]" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent text-sm" placeholder="Descripción de la modalidad..."></textarea>';
                             list.appendChild(row);
                         }
                         updateRemoveButtons();
@@ -577,11 +597,14 @@
             }
 
             const row = document.createElement('div');
-            row.className = 'flex items-center gap-2 presupuesto-row';
+            row.className = 'flex flex-col gap-2 presupuesto-row border border-gray-200 rounded-lg p-3';
             row.innerHTML =
+                '<div class="flex items-center gap-2">' +
                 '<input name="tipo_presupuesto[]" type="text" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Ej: Nacional, Internacional, etc.">' +
                 '<input name="monto[]" type="number" step="0.01" class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent" placeholder="Monto">' +
-                '<button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>';
+                '<button type="button" onclick="removerPresupuesto(this)" class="text-red-600 px-3 py-2">×</button>' +
+                '</div>' +
+                '<textarea name="descripcion_presupuesto[]" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7A1737] focus:border-transparent text-sm" placeholder="Descripción de la modalidad..."></textarea>';
 
             list.appendChild(row);
             updateRemoveButtons();
