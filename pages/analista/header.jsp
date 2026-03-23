@@ -69,6 +69,14 @@
             <span class="text-white/20">|</span>
 
             <a class="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-white/10 hover:text-[#B28854] transition-colors duration-200 font-medium group" 
+               href="/proyectos/pages/analista/asignarProyectosEvaluador/">
+                <svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                Asignar Evaluadores
+            </a>
+
+            <span class="text-white/20">|</span>
+
+            <a class="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-white/10 hover:text-[#B28854] transition-colors duration-200 font-medium group" 
                href="/proyectos/pages/analista/usuarios/">
                 <svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                 Usuarios
